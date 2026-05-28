@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animación - Simulación de Gestión de Agua</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Panel Izquierdo -->
+        <div class="left-panel">
+            <div class="info-box">
+                <h2>Simulación de Agua</h2>
+                
+                <div class="scenario-selector">
+                    <label for="scenarioSelect">Escenario:</label>
+                    <select id="scenarioSelect">
+                        <option value="0">Principal</option>
+                    </select>
+                </div>
+                
+                <div class="day-display">
+                    <div class="day-label">Día</div>
+                    <div class="day-number" id="dayNumber">1</div>
+                    <div class="day-date" id="dayDate">2024-01-01</div>
+                </div>
+
+                <!-- CONTROLES DE REPRODUCCIÓN -->
+                <div class="controls">
+                    <div class="button-group">
+                        <button id="playBtn" class="btn btn-play" title="Reproducir">▶</button>
+                        <button id="pauseBtn" class="btn btn-pause" title="Pausar">⏸</button>
+                        <button id="resetBtn" class="btn btn-reset" title="Reiniciar">⟲</button>
+                        <button id="endBtn" class="btn btn-end" title="Ir al final">⏭</button>
+                    </div>
+
+                    <div class="slider-group">
+                        <label for="speedSlider">Velocidad:</label>
+                        <input type="range" id="speedSlider" min="0.1" max="5" step="0.1" value="1" class="slider">
+                        <span id="speedValue">1.0x</span>
+                    </div>
+
+                    <div class="slider-group">
+                        <label for="daySlider">Día:</label>
+                        <input type="range" id="daySlider" min="1" max="365" step="1" value="1" class="slider">
+                        <span id="dayValue">1 / 365</span>
+                    </div>
+
+                    <div class="progress-bar">
+                        <div class="progress" id="progressBar"></div>
+                    </div>
+                </div>
+
+                <!-- PARÁMETROS DEL MODELO -->
+                <div class="section section-parametros">
+                    <h3>📋 PARÁMETROS DEL MODELO</h3>
+                    <div class="params-grid" id="parametrosBox">
+                        <!-- Cargado dinámicamente desde API -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Panel Derecho - Variables + Gráficos -->
+        <div class="right-panel">
+
+            <!-- FILA 1: Variables Dinámicas -->
+            <div class="info-row">
+                <div class="section section-variables">
+                    <h3>⚡ VARIABLES DINÁMICAS</h3>
+                    <div class="stats-box">
+                        <div class="stat">
+                            <span class="stat-label">Oferta Superficial:</span>
+                            <span class="stat-value" id="accionesHoy">0.00</span> m³/día
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">% Desmarque:</span>
+                            <span class="stat-value" id="desmarqueHoy">0.00</span> %
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Pérdida por Conducción:</span>
+                            <span class="stat-value" id="perdidaConduccionPct">0.00</span> m³
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Pérdida por Filtración:</span>
+                            <span class="stat-value" id="perdidaFiltracionM3">0.00</span> m³
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Pérdida Total:</span>
+                            <span class="stat-value" id="perdidaTotalM3">0.00</span> m³
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Recarga Subterránea:</span>
+                            <span class="stat-value" id="stockHoy">0.00</span> m³
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FILA 2: Lógica de Apertura del Canal -->
+            <div class="info-row">
+                <div class="section section-logica">
+                    <h3>🔀 LÓGICA DE APERTURA DEL CANAL</h3>
+                    <div class="logic-flow">
+                        <div class="logic-block">
+                            <span class="logic-label">Turno Activo</span>
+                            <span class="logic-chip" id="chipTurnoActivo">-</span>
+                        </div>
+                        <span class="logic-op">AND NOT</span>
+                        <div class="logic-block">
+                            <span class="logic-label">En Parada</span>
+                            <span class="logic-chip" id="chipEnParada">-</span>
+                        </div>
+                        <span class="logic-op">→</span>
+                        <div class="logic-block">
+                            <span class="logic-label">Apertura Canal</span>
+                            <span class="logic-chip logic-result" id="chipAperturaCanal">-</span>
+                        </div>
+                    </div>
+                    <div class="logic-desc" id="logicDesc">—</div>
+                </div>
+            </div>
+
+            <!-- FILA 3: Indicadores de Disponibilidad -->
+            <div class="info-row info-row-indicadores">
+                <div class="section section-indicadores">
+                    <h3>📊 INDICADORES DE DISPONIBILIDAD</h3>
+                    <div class="indicators-box">
+                        <div class="indicator">
+                            <span class="indicator-label">Días sin sup. (máx):</span>
+                            <span class="indicator-value" id="maxSinSuperficial">-</span> días
+                        </div>
+                        <div class="indicator">
+                            <span class="indicator-label">Días sin ninguna:</span>
+                            <span class="indicator-value" id="diasSinAgua">-</span> días
+                        </div>
+                        <div class="indicator">
+                            <span class="indicator-label">Suma superficial:</span>
+                            <span class="indicator-value" id="sumaSuperficial">-</span> m³
+                        </div>
+                        <div class="indicator">
+                            <span class="indicator-label">Oferta total acum.:</span>
+                            <span class="indicator-value" id="ofertaTotalDisp">-</span> m³
+                        </div>
+                        <div class="indicator">
+                            <span class="indicator-label">Promedio diario:</span>
+                            <span class="indicator-value" id="promedioTotal">-</span> m³/día
+                        </div>
+                        <div class="indicator">
+                            <span class="indicator-label">Pérdida total mín.:</span>
+                            <span class="indicator-value" id="perdidaMin">-</span> m³
+                        </div>
+                        <div class="indicator">
+                            <span class="indicator-label">Pérdida total máx.:</span>
+                            <span class="indicator-value" id="perdidaMax">-</span> m³
+                        </div>
+                        <div class="indicator">
+                            <span class="indicator-label">Pérdida total prom.:</span>
+                            <span class="indicator-value" id="perdidaProm">-</span> m³/día
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="chart1" class="chart"></div>
+            <div id="chart2" class="chart"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

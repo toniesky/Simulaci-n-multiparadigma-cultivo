@@ -1,0 +1,7 @@
+id,nombre,frecuencia_dias,hectareas,fraccion_cultivada,capacidad_estanque_m3,nivel_estanque_inicial_m3
+1,Regante_A,9,0.5,0.60,50.0,50.0
+2,Regante_B,9,1.0,0.7,120.0,20.0
+3,Regante_C,9,0.8,0.65,100.0,15.0
+4,Regante_D,9,0.6,0.55,60.0,5.0
+5,Regante_E,9,1.5,0.75,200.0,30.0
+6,Regante_F,9,2.0,0.85,300.0,50.0
