@@ -433,7 +433,39 @@ productividad_cultivos.csv  simulacion_cultivo.py
 
 ---
 
-## 6. Guía de Ejecución
+## 6. Librerías y Paradigmas de Simulación
+
+El proyecto combina dos paradigmas de simulación implementados con librerías Python especializadas:
+
+### PySSD — Dinámica de Sistemas (`Oferta Hídrica`)
+
+| | |
+|---|---|
+| **Librería** | [`pysd`](https://pysd.readthedocs.io) v3.14.3 |
+| **Paradigma** | Dinámica de sistemas (System Dynamics) |
+| **Uso en el proyecto** | Simula el comportamiento del canal de riego como un sistema de **stocks y flujos** con retroalimentación: el nivel del canal evoluciona en el tiempo según tasas de entrada (desmarque) y salida (consumo + pérdidas), lo que permite capturar fenómenos acumulativos como el agotamiento progresivo del recurso hídrico a lo largo de la temporada. |
+
+PySSD permite escribir modelos directamente en Python sin necesidad de un diagrama Vensim/Stella externo; el modelo `modelo_sistema_agua.py` codifica los niveles y tasas explícitamente.
+
+### SimPy — Eventos Discretos (`Simulación de Cultivo`)
+
+| | |
+|---|---|
+| **Librería** | [`simpy`](https://simpy.readthedocs.io) ≥ 4.0.0 |
+| **Paradigma** | Simulación de eventos discretos |
+| **Uso en el proyecto** | Simula el ciclo agronómico de cada parcela como una **secuencia de eventos** (siembra, etapas fenológicas, riegos, cosecha) que ocurren en días específicos. El motor de SimPy avanza el reloj de evento en evento, lo que es eficiente para modelos donde los días sin actividad no requieren cálculo. Cada regante y cada parcela corre como un proceso concurrente. |
+
+### Instalación de dependencias
+
+```powershell
+# Desde la raíz del proyecto
+& ".venv\Scripts\python.exe" -m pip install -r "Oferta Hidrica\requirements.txt"
+& ".venv\Scripts\python.exe" -m pip install -r "Simulación Cultivo\requirements.txt"
+```
+
+---
+
+## 7. Guía de Ejecución
 
 ### Paso 1 — Ejecutar la Oferta Hídrica
 
@@ -470,7 +502,7 @@ Abrir `Simulación Cultivo/outputs/ReporteParticiones.html` en cualquier navegad
 
 ---
 
-## 7. Archivos de Entrada y Salida
+## 8. Archivos de Entrada y Salida
 
 ### Entradas del Módulo de Oferta Hídrica
 
@@ -501,7 +533,7 @@ Abrir `Simulación Cultivo/outputs/ReporteParticiones.html` en cualquier navegad
 
 ---
 
-## 8. Referencias Bibliográficas
+## 9. Referencias Bibliográficas
 
 - **Allen, R.G., Pereira, L.S., Raes, D., Smith, M. (1998).** *Crop evapotranspiration — Guidelines for computing crop water requirements.* FAO Irrigation and Drainage Paper 56. Food and Agriculture Organization of the United Nations, Rome.
 
@@ -511,7 +543,7 @@ Abrir `Simulación Cultivo/outputs/ReporteParticiones.html` en cualquier navegad
 
 ---
 
-## 9. Fuentes de Datos
+## 10. Fuentes de Datos
 
 - **ODEPA — Series de tiempo, precios hortalizas.** Sistema de consulta de precios mayoristas por subsector. Oficina de Estudios y Políticas Agrarias, Ministerio de Agricultura, Chile. Disponible en: https://aplicativos.odepa.gob.cl/series-precios/series-tiempo. Consulta: mayo 2026. Configuración utilizada: precios mayoristas, hortalizas y tubérculos, precios reales (IPC base 04/2026), serie anual 2014–2025.
 
