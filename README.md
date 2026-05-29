@@ -118,8 +118,10 @@ En la versión actual del modelo, el regante ingresa su mejor estimación como `
 Dado que el desmarque final es incierto, el modelo genera **5 escenarios** que cubren un rango de posibles realizaciones alrededor de la estimación central del regante, variando en pasos de `SALTO_DESMARQUE`:
 
 $$
-\text{desmarque}(i) = \text{PORCENTAJE\_DESMARQUE\_FINAL} + i \cdot \text{SALTO\_DESMARQUE}, \quad i \in \{-2, -1, 0, +1, +2\}
+d(i) = d_0 + i \cdot \Delta d, \quad i \in \{-2,\,-1,\,0,\,+1,\,+2\}
 $$
+
+donde $d_0$ = `PORCENTAJE_DESMARQUE_FINAL` y $\Delta d$ = `SALTO_DESMARQUE`.
 
 Ejemplo con base = 15 % y salto = 2.5 %:
 
@@ -149,8 +151,10 @@ AperturaCanal = TurnoActivo  AND  NOT EnParada
 Cuando el canal está abierto, la oferta bruta del regante es:
 
 $$
-Q_{bruta} = \text{NUMERO\_ACCIONES} \times \text{VALOR\_ACCION} \times \text{PorcentajeDesmarque}
+Q_{bruta} = N_{acc} \times V_{acc} \times d
 $$
+
+donde $N_{acc}$ = `NUMERO_ACCIONES`, $V_{acc}$ = `VALOR_ACCION`, $d$ = porcentaje de desmarque.
 
 Las pérdidas se samplea cada día con distribución uniforme dentro del rango configurado:
 
@@ -299,8 +303,10 @@ Cada día de simulación el modelo satisface la demanda neta del cultivo ($DN = 
 El balance del estanque se actualiza diariamente:
 
 $$
-N_{est}(t) = N_{est}(t-1) + \text{Almacenado}(t) - \text{Extraído\_estanque}(t)
+N_{est}(t) = N_{est}(t-1) + A(t) - E(t)
 $$
+
+donde $A(t)$ = volumen almacenado y $E(t)$ = volumen extraído del estanque ese día.
 
 con $N_{est} \in [0,\, C_{est}]$, donde $C_{est}$ es la capacidad máxima configurada en `regantes.csv`.
 
