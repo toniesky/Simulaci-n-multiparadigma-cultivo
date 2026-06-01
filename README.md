@@ -37,7 +37,7 @@
 
 ## 1. Objetivo del Sistema
 
-El presente modelo constituye un **sistema de soporte a la toma de decisiones** para regantes con derechos de agua en canal superficial y acceso optativo a fuentes subterráneas. El sistema aborda dos interrogantes centrales de la planificación agrícola bajo incertidumbre hídrica:
+El presente repositorio implementa la **plataforma de simulación computacional** de un modelo multiparadigma en desarrollo, diseñado para generar evidencia experimental en el contexto de una investigación sobre soporte a la toma de decisiones para regantes con derechos de agua en canal superficial y acceso optativo a fuentes subterráneas. La plataforma permite explorar, mediante corridas de simulación bajo distintos escenarios de disponibilidad hídrica, dos interrogantes centrales de la planificación agrícola:
 
 1. **¿Cuánta agua llega al predio?** — El subsistema de Oferta Hídrica modela el canal de distribución como un sistema de **stocks y flujos** mediante Dinámica de Sistemas. Las **variables de estado** (acumulaciones de agua) evolucionan temporalmente bajo la acción de tasas de entrada (desmarque) y salida (consumo y pérdidas estocásticas), lo que permite capturar la **dinámica acumulativa** de la oferta superficial a lo largo del horizonte de planificación, incluyendo paradas de mantenimiento y E escenarios de desmarque final.
 
@@ -57,13 +57,13 @@ La complejidad del problema de planificación agrícola bajo restricción hídri
 
 El **trade-off central** surge de la interacción entre estas tres dimensiones: regar más reduce el estrés ($K_s \to 1$) y protege el rendimiento, pero consume el stock de agua disponible para el resto de la temporada y puede comprometer cultivos posteriores o en parcelas vecinas. Por otro lado, plantar cultivos de mayor valor económico suele requerir mayor demanda hídrica y mayor inversión inicial, lo que eleva la exposición al riesgo ante una temporada de desmarque bajo.
 
-Una decisión de portafolio que ignore la dinámica hídrica sobreestimará los márgenes esperados; una que ignore la estacionalidad de precios suboptimizará el momento de cosecha; y una que ignore la restricción de presupuesto generará planes no ejecutables. La modelación multiparadigma permite **cuantificar explícitamente este trade-off** bajo E escenarios de oferta hídrica, entregando al regante una frontera de decisiones informada antes del inicio de la temporada.
+Una decisión de portafolio que ignore la dinámica hídrica puede sobreestimar los márgenes esperados; una que ignore la estacionalidad de precios puede suboptimizar el momento de cosecha; y una que ignore la restricción de presupuesto puede generar planes no ejecutables. La plataforma de simulación multiparadigma busca **generar la evidencia cuantitativa necesaria para analizar este trade-off** bajo E escenarios de oferta hídrica, facilitando la exploración de comportamientos del sistema como insumo para la etapa posterior de análisis e investigación.
 
 ---
 
 ## 2. Arquitectura General
 
-El sistema está compuesto por dos subsistemas de simulación desacoplados que intercambian estado a través de un archivo CSV intermedio. La selección del paradigma de simulación para cada subsistema responde a la estructura causal y temporal del fenómeno que representa: la Dinámica de Sistemas captura la evolución continua de stocks hídricos con estructura de retroalimentación, mientras que la Simulación de Eventos Discretos representa con fidelidad los procesos agronómicos gobernados por eventos discretos y transiciones de estado.
+La plataforma experimental está compuesta por dos subsistemas de simulación desacoplados que intercambian estado a través de un archivo CSV intermedio, permitiendo ejecutar corridas de simulación independientes para cada módulo y analizar el comportamiento del sistema bajo distintos escenarios de entrada. La selección del paradigma de simulación para cada subsistema responde a la estructura causal y temporal del fenómeno que representa: la Dinámica de Sistemas captura la evolución continua de stocks hídricos con estructura de retroalimentación, mientras que la Simulación de Eventos Discretos representa con fidelidad los procesos agronómicos gobernados por eventos discretos y transiciones de estado.
 
 ```mermaid
 flowchart LR
@@ -110,7 +110,7 @@ flowchart LR
  DE --> O2
 ```
 
-> **Principio de desacoplamiento:** ambos subsistemas son autónomos. La re-ejecución del Módulo 1 —ante una revisión del desmarque estimado— no requiere re-ejecutar el Módulo 2, y viceversa. El intercambio de estado entre subsistemas ocurre exclusivamente a través de `CalendarioOferta.csv`.
+> **Principio de desacoplamiento:** ambos subsistemas son autónomos. La re-ejecución del Módulo 1 —ante una revisión del desmarque estimado— no requiere re-ejecutar el Módulo 2, y viceversa. El intercambio de estado entre subsistemas ocurre exclusivamente a través de `CalendarioOferta.csv`, lo que facilita la experimentación sistemática bajo escenarios alternativos de oferta hídrica.
 
 ---
 
@@ -530,7 +530,7 @@ Por cada combinación óptima la simulación registra los siguientes indicadores
 | `Costo_clp` | Costo de insumos y producción |
 | `Margen_real_clp` | Ingreso bruto − costo (objetivo de optimización) |
 
-El reporte `ReporteParticiones.html` presenta para cada escenario los siguientes elementos:
+El reporte `ReporteParticiones.html` organiza, para cada escenario simulado, las siguientes salidas del modelo destinadas al análisis posterior:
 - Indicadores clave (KPI cards) con la descomposición del volumen del canal (riego / almacenamiento / pérdida con porcentajes)
 - Trayectoria temporal de la humedad volumétrica en la zona radicular
 - Calendario de riego en dos paneles: *llegadas del canal* (desglose por destino) y *agua aplicada* (desglose por fuente)
