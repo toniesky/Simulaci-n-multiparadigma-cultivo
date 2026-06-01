@@ -47,19 +47,48 @@ El sistema apoya la **toma de decisiones de riego** para un regante con derechos
 El sistema está compuesto por dos módulos independientes que se comunican a través de un archivo CSV intermedio. Cada módulo usa un paradigma de simulación distinto, elegido según la naturaleza del problema que resuelve.
 
 ```mermaid
-graph LR
-    subgraph OH["① Oferta Hídrica — Dinámica de Sistemas (pysd)"]
+flowchart LR
+    classDef ext    fill:#f1f5f9,stroke:#64748b,color:#1e293b,stroke-dasharray:5 4
+    classDef param  fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
+    classDef engine fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef csv    fill:#fef9c3,stroke:#ca8a04,color:#713f12
+    classDef out    fill:#fce7f3,stroke:#db2777,color:#831843
+
+    %% Fuentes externas
+    EXT1(["🌧️ CEAZAMet\nClima histórico"]):::ext
+    EXT2(["❄️ CEAZA Nieve\nSWE cuenca"]):::ext
+    EXT3(["💧 DGA\nBoletines hídricos"]):::ext
+
+    %% Módulo 1
+    subgraph M1["① Oferta Hídrica — Dinámica de Sistemas"]
         direction TB
-        IV["Parámetros canal\ninitial_values.py"] --> MSA["modelo_sistema_agua.py\n5 escenarios de desmarque"]
+        P1["📄 initial_values.py\nParámetros del canal"]:::param
+        SD["⚙️ modelo_sistema_agua.py\n5 escenarios × T días\nPérdidas U(min,max)"]:::engine
+        P1 --> SD
     end
 
-    subgraph SC["② Simulación de Cultivo — Eventos Discretos (SimPy)"]
+    %% Módulo 2
+    subgraph M2["② Simulación de Cultivo — Eventos Discretos"]
         direction TB
-        INP["Datos clima, cultivos\nregantes, parametros.py"] --> SIM["simular_demanda.py\nBalance hídrico + portafolio"]
+        P2["📄 parametros.py\nCultivos · Regantes · Clima"]:::param
+        DE["⚙️ simular_demanda.py\nBalance FAO-56 + despacho\nCombinaciones C(n+P-1,P)"]:::engine
+        P2 --> DE
     end
 
-    MSA -->|"CalendarioOferta.csv\noferta diaria × escenario"| SIM
-    SIM --> OUT["ReporteParticiones.html\nSimulacionDemanda.csv"]
+    %% Archivo intermedio
+    CSV[("📊 CalendarioOferta.csv\noferta diaria × escenario")]:::csv
+
+    %% Salidas finales
+    O1["📈 SimulacionDemanda.csv"]:::out
+    O2["🗂️ ReporteEscenarios.html"]:::out
+
+    %% Flujos
+    EXT1 & EXT2 & EXT3 --> P2
+    EXT2 & EXT3          --> P1
+    SD  --> CSV
+    CSV --> DE
+    DE  --> O1
+    DE  --> O2
 ```
 
 > **Principio de desacoplamiento:** los módulos son independientes. Es posible re-ejecutar solo la Oferta Hídrica (p.ej. al cambiar el desmarque esperado) sin volver a correr la Simulación de Cultivo, y viceversa.
