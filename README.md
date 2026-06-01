@@ -44,25 +44,57 @@ El sistema apoya la **toma de decisiones de riego** para un regante con derechos
 
 ## 2. Arquitectura General
 
+El sistema está compuesto por dos módulos independientes que se comunican a través de un archivo CSV intermedio. Cada módulo usa un paradigma de simulación distinto, elegido según la naturaleza del problema que resuelve.
+
 ```mermaid
 graph LR
-    subgraph OH["Módulo 1 — Oferta Hídrica"]
+    subgraph OH["① Oferta Hídrica — Dinámica de Sistemas (pysd)"]
         direction TB
-        IV["initial_values.py"] --> MSA["modelo_sistema_agua.py"]
+        IV["Parámetros canal\ninitial_values.py"] --> MSA["modelo_sistema_agua.py\n5 escenarios de desmarque"]
     end
-    subgraph SC["Módulo 2 — Simulación de Cultivo"]
+
+    subgraph SC["② Simulación de Cultivo — Eventos Discretos (SimPy)"]
         direction TB
-        INP["inputs/*.csv\nparámetros.py"] --> SIM["simular_demanda.py"]
+        INP["Datos clima, cultivos\nregantes, parametros.py"] --> SIM["simular_demanda.py\nBalance hídrico + portafolio"]
     end
-    MSA -->|CalendarioOferta.csv| SIM
-    SIM --> REP["ReporteParticiones.html\nSimulacionDemanda.csv"]
+
+    MSA -->|"CalendarioOferta.csv\noferta diaria × escenario"| SIM
+    SIM --> OUT["ReporteParticiones.html\nSimulacionDemanda.csv"]
 ```
 
-Los dos módulos están **desacoplados**: la Oferta Hídrica produce un CSV que la Simulación de Cultivo consume. Es posible actualizar solo la oferta sin reejecutar la simulación de cultivo, y viceversa.
+> **Principio de desacoplamiento:** los módulos son independientes. Es posible re-ejecutar solo la Oferta Hídrica (p.ej. al cambiar el desmarque esperado) sin volver a correr la Simulación de Cultivo, y viceversa.
 
 ---
 
 ## 3. Módulo 1 — Oferta Hídrica (Dinámica de Sistemas)
+
+El módulo simula **cuánta agua llega al predio** a lo largo de 365 días, generando un calendario para cada escenario de desmarque. La incertidumbre sobre el desmarque final se maneja produciendo 5 escenarios en paralelo.
+
+```mermaid
+flowchart TD
+    classDef param fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
+    classDef proc  fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef out   fill:#fef9c3,stroke:#ca8a04,color:#713f12
+    classDef dec   fill:#fff7ed,stroke:#ea580c,color:#7c2d12
+
+    D0["PORCENTAJE_DESMARQUE_FINAL\n± SALTO_DESMARQUE\n→ 5 valores de desmarque"]:::param
+    PL["PERDIDA_CONDUCCION\nPERDIDA_FILTRACION\n(rangos uniformes)"]:::param
+    CA["CALENDARIO_PARADAS\nFRECUENCIA_TURNO\nDURACION_MANTENIMIENTO"]:::param
+
+    D0 --> ESC["escenarios.py\ngenera d₋₂, d₋₁, d₀, d₊₁, d₊₂"]:::proc
+
+    ESC --> LOOP["Para cada día t = 1…365\n× cada escenario i = −2…+2"]:::proc
+    CA  --> LOOP
+    PL  --> LOOP
+
+    LOOP --> T{"¿TurnoActivo\nAND\nNO EnParada?"}:::dec
+    T -->|"No"| Z["OfertaSuperficial = 0 m³"]:::out
+    T -->|"Sí"| Q["Q_bruta = N_acc × V_acc × dᵢ\nQ_neta = Q_bruta · (1 − Pcond − Pfilt)"]:::proc
+    Q  --> CO
+    Z  --> CO
+
+    CO[("CalendarioOferta.csv\n365 días × 5 escenarios\nOfertaSuperficial, Pérdidas, Flags")]:::out
+```
 
 ### 3.1 Parámetros configurables
 
@@ -177,6 +209,50 @@ El archivo resultante tiene una fila por día × escenario con las columnas:
 ---
 
 ## 4. Módulo 2 — Simulación de Cultivo (Eventos Discretos)
+
+El módulo responde **qué cultivos plantar y cuándo regar** para maximizar el margen económico, dada la oferta de agua generada por el módulo anterior. Cada parcela es un proceso SimPy que avanza día a día por eventos (siembra, riegos, cosecha).
+
+```mermaid
+flowchart TD
+    classDef param fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
+    classDef proc  fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef out   fill:#fce7f3,stroke:#db2777,color:#831843
+    classDef data  fill:#fef9c3,stroke:#ca8a04,color:#713f12
+    classDef dec   fill:#fff7ed,stroke:#ea580c,color:#7c2d12
+
+    CO[("CalendarioOferta.csv\n5 escenarios")]:::data
+    CLI["datosclima.csv\nETo(t), PP(t)"]:::param
+    DC["data_cultivos.csv\nKcb, fases fenológicas"]:::param
+    CAL["calendario_siembra.csv\nfiltro de cultivos por mes"]:::param
+    REG["regantes.csv\nha, capacidad estanque"]:::param
+    PROD["productividad_cultivos.csv\nprecios CLP/ha, costos, rendimientos"]:::param
+    PAR["parametros.py\nα, f_drain, Dr₀, presupuesto…"]:::param
+
+    subgraph SIMPY["SimPy — proceso por parcela, día a día"]
+        FAO["Balance FAO-56\nET_real = Ks·Kcb·ET₀·Hᵅ + Es\nActualizar Dr y De"]:::proc
+        DISP["Despacho de agua\n① Canal  ② Estanque  ③ Subterráneo"]:::proc
+        FAO --> DISP
+    end
+
+    CLI --> FAO
+    DC  --> FAO
+    PAR --> FAO
+    CO  --> DISP
+    REG --> DISP
+
+    subgraph OPT["Optimización combinatoria"]
+        COMB["Enumerar C(n+P−1, P) combinaciones\nde cultivos filtrados por mes"]:::proc
+        BEST["Combinación ganadora\nmax Σ Margen_real  s.a. Σ Costo ≤ Presupuesto"]:::proc
+        COMB --> BEST
+    end
+
+    CAL  --> COMB
+    PROD --> COMB
+    SIMPY --> OPT
+
+    BEST --> HTML["ReporteParticiones.html\nKPIs hídricos + económicos por escenario"]:::out
+    BEST --> CSV["SimulacionDemanda.csv\nReporteEscenarios.csv"]:::out
+```
 
 ### 4.1 Balance hídrico FAO-56 doble coeficiente
 
