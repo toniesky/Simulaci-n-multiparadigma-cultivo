@@ -13,8 +13,8 @@
 3. [Módulo 1 — Oferta Hídrica (Dinámica de Sistemas)](#3-módulo-1--oferta-hídrica-dinámica-de-sistemas)
  - 3.1 Parámetros configurables
  - 3.2 Generación de escenarios de desmarque
- - 3.3 Lógica de apertura del canal
- - 3.4 Cálculo de pérdidas y oferta neta
+ - 3.3 Condición de activación del flujo de entrada al predio
+ - 3.4 Modelado estocástico de pérdidas y oferta neta
  - 3.5 Salida: CalendarioOferta.csv
 4. [Módulo 2 — Simulación de Cultivo (Eventos Discretos)](#4-módulo-2--simulación-de-cultivo-eventos-discretos)
  - 4.1 Balance hídrico FAO-56 doble coeficiente
@@ -27,9 +27,11 @@
  - 4.5 Optimización combinatoria de portafolio
  - 4.6 KPIs y reporte HTML
 5. [Flujo de Datos end-to-end](#5-flujo-de-datos-end-to-end)
-6. [Guía de Ejecución](#6-guía-de-ejecución)
-7. [Archivos de Entrada y Salida](#7-archivos-de-entrada-y-salida)
-8. [Referencias Bibliográficas](#8-referencias-bibliográficas)
+6. [Paradigmas de Simulación e Implementación Computacional](#6-paradigmas-de-simulación-e-implementación-computacional)
+7. [Guía de Ejecución](#7-guía-de-ejecución)
+8. [Archivos de Entrada y Salida](#8-archivos-de-entrada-y-salida)
+9. [Referencias Bibliográficas](#9-referencias-bibliográficas)
+10. [Fuentes de Datos](#10-fuentes-de-datos)
 
 ---
 
@@ -206,11 +208,11 @@ Ejemplo con base = 15 % y salto = 2.5 %:
 | +1 | 17.5 % | Temporada moderadamente húmeda |
 | +2 | 20 % | Temporada húmeda — buen nivel de nieve y embalse |
 
-La lógica está implementada en `modulos/escenarios.py → generar_escenarios(iv)`. El escenario 0 se denomina *Principal*.
+La estructura de generación de escenarios está codificada en `modulos/escenarios.py → generar_escenarios(iv)`. El escenario 0 se denomina *Principal*.
 
 ### 3.3 Condición de activación del flujo de entrada al predio
 
-Para cada paso temporal $t$ y para cada escenario $e_i$, el **flujo de entrada** al predio es positivo únicamente cuando se satisfacen simultáneamente dos condiciones booleanas:
+Para cada paso de integración $t$ y para cada escenario $e_i$, el **flujo de entrada** al predio es positivo únicamente cuando se satisfacen simultáneamente dos condiciones booleanas:
 
 ```
 AperturaCanal = TurnoActivo AND NOT EnParada
@@ -219,11 +221,11 @@ AperturaCanal = TurnoActivo AND NOT EnParada
 - **TurnoActivo**: el paso temporal $t$ corresponde a un día de turno del regante (múltiplo de `FRECUENCIA_TURNO`).
 - **EnParada**: $t$ cae dentro de una ventana de mantenimiento definida por `CALENDARIO_PARADAS` + `DURACION_MANTENIMIENTO`.
 
-Cuando la condición no se satisface, el flujo de entrada al predio es nulo: $Q_{neta}(t) = 0$.
+Cuando la condición no se satisface, el flujo de entrada es nulo y la **variable de nivel** del stock predial no experimenta acumulación en ese paso de integración: $Q_{neta}(t) = 0$.
 
 ### 3.4 Modelado estocástico de pérdidas y oferta neta
 
-Cuando el flujo de entrada está activo, la oferta bruta del regante constituye la **tasa de entrada** al stock predial:
+Cuando el flujo de entrada está activo, la oferta bruta del regante constituye la **tasa de entrada** —flujo positivo— que alimenta la acumulación en el stock predial:
 
 $$
 Q_{bruta} = N_{acc} \times V_{acc} \times d
@@ -241,7 +243,7 @@ $$
 P_{total} = P_{cond} + P_{filt}, \qquad Q_{neta} = Q_{bruta}\,(1 - P_{total})
 $$
 
-La **recarga subterránea** se incorpora como una perturbación puntual al stock de agua subterránea únicamente en la fecha exacta especificada en `RECARGAS_AGUA_SUBTERRANEA` (efecto no acumulativo entre periodos).
+La **recarga subterránea** se incorpora como una **perturbación exógena** puntual al stock de agua subterránea únicamente en la fecha exacta especificada en `RECARGAS_AGUA_SUBTERRANEA` (efecto no acumulativo entre períodos de integración).
 
 ### 3.5 Salida: CalendarioOferta.csv
 
@@ -288,7 +290,7 @@ flowchart TD
  PROD["productividad_cultivos.csv\nprecios CLP/ha, costos, rendimientos"]:::param
  PAR["parametros.py\nα, f_drain, Dr₀, presupuesto…"]:::param
 
- subgraph SIMPY["SimPy — proceso por parcela, día a día"]
+ subgraph SIMPY["DES — proceso por parcela, ciclo agronómico"]
  FAO["Balance FAO-56\nET_real = Ks·Kcb·ET₀·Hᵅ + Es\nActualizar Dr y De"]:::proc
  DISP["Despacho de agua\n① Canal ② Estanque ③ Subterráneo"]:::proc
  FAO --> DISP
@@ -412,7 +414,7 @@ Los parámetros de suelo (`CC`, `PMP`, `Ze_evap`, `AET`, `AFE`) se definen en `p
 
 ### 4.3 Política de Riego
 
-En cada **evento de riego** el simulador satisface la demanda neta del cultivo ($D_N = \max(0,\; ET_r - PP)$, donde $ET_r$ es la evapotranspiración real bajo estrés) asignando los **recursos hídricos disponibles** en el siguiente orden de prioridad:
+En cada **evento de riego** el proceso de despacho satisface la demanda neta del cultivo ($D_N = \max(0,\; ET_r - PP)$, donde $ET_r$ es la evapotranspiración real bajo estrés) asignando los **recursos hídricos disponibles** en el siguiente orden de prioridad:
 
 ```
 1. CANAL (eventos de turno con flujo activo):
@@ -449,11 +451,11 @@ El archivo `inputs/calendario_siembra.csv` define, para cada **entidad cultivo**
 | tomate | 1 | 0 | … | 1 |
 | … | … | … | … | … |
 
-Al iniciar la ejecución, el motor convierte `DIA_INICIO_SIMULACION + DIA_SIEMBRA` a mes calendario y filtra `data_cultivos.csv` conservando únicamente las entidades cultivo con valor 1 en esa columna. El filtro se aplica **antes** de construir las combinaciones del optimizador, reduciendo el espacio de búsqueda.
+Al programarse el evento de inicio de temporada, el calendario de eventos convierte `DIA_INICIO_SIMULACION + DIA_SIEMBRA` a mes calendario y selecciona únicamente las entidades cultivo con valor 1 en esa columna. El filtro se aplica **antes** de construir las combinaciones del evaluador exhaustivo, reduciendo el espacio de búsqueda combinatorio.
 
 ### 4.5 Optimización combinatoria de portafolio
 
-El regante divide su superficie en `PARTICIONES` parcelas iguales ($ha_{part} = ha_{total} / P$). Para cada escenario de oferta, el motor de simulación determina la **combinación óptima de $P$ entidades cultivo** (con repetición permitida) que maximiza el margen económico total.
+El regante divide su superficie en `PARTICIONES` parcelas iguales ($ha_{part} = ha_{total} / P$). Para cada escenario de oferta, la evaluación exhaustiva del espacio combinatorio determina la **combinación óptima de $P$ entidades cultivo** (con repetición permitida) que maximiza el margen económico total.
 
 **Espacio de búsqueda:**
 
@@ -467,7 +469,7 @@ Por ejemplo con $n = 8$ cultivos disponibles y $P = 4$ particiones → $\binom{1
 
 **Algoritmo de búsqueda exhaustiva:**
 
-Para un portafolio de $P$ particiones, el motor evalúa **todas** las combinaciones de forma exhaustiva (búsqueda completa en el espacio combinatorio). La combinación ganadora es aquella que maximiza:
+Para un portafolio de $P$ particiones, se evalúan de forma exhaustiva **todas** las combinaciones del espacio de búsqueda (enumeración completa). La combinación ganadora es aquella que maximiza:
 
 $$
 \text{score} = \sum_{i=1}^{P} \text{Margen}_{real,i} \quad \text{sujeto a} \quad \sum_{i=1}^{P} \text{Costo}_i \le \text{Presupuesto}
@@ -504,7 +506,7 @@ Extraídos de las [Fichas de Costo de Hortalizas](https://www.odepa.gob.cl/ficha
 
 ![Precio Promedio Mensual Hortalizas](docs/precios_hortalizas.png)
 
-Por cada combinación óptima el modelo calcula los siguientes indicadores:
+Por cada combinación óptima la simulación registra los siguientes indicadores:
 
 **Hídricos:**
 
@@ -616,7 +618,7 @@ flowchart TD
  %% Módulo 1: Oferta Hídrica 
  EST --> IV["initial_values.py\n± SALTO_DESMARQUE"]:::cfg
 
- subgraph MOH["Módulo 1 — Oferta Hídrica · pysd"]
+ subgraph MOH["Módulo 1 — Oferta Hídrica (Dinámica de Sistemas)"]
  MSA["modelo_simulacion_oferta_hidrica.py\nE escenarios de desmarque\npérdidas aleatorias · paradas"]:::proc
  end
 
@@ -627,7 +629,7 @@ flowchart TD
  PAR["parametros.py"]:::cfg
  INP["data_cultivos.csv\nregantes.csv\ncalendario_siembra.csv\nproductividad_cultivos.csv"]:::cfg
 
- subgraph MSC["Módulo 2 — Simulación de Cultivo · SimPy"]
+ subgraph MSC["Módulo 2 — Simulación de Cultivo (Eventos Discretos)"]
  SIM["simular_demanda.py\nFAO-56 dual coef. + f(H)=Hᵅ\ndespacho canal / estanque / sub\nC(n+P−1, P) combinaciones"]:::proc
  end
 
@@ -643,27 +645,31 @@ flowchart TD
 
 ---
 
-## 6. Librerías y Paradigmas de Simulación
+## 6. Paradigmas de Simulación e Implementación Computacional
 
-El proyecto implementa dos paradigmas de simulación mediante librerías Python especializadas, cada una seleccionada por su adecuación estructural al fenómeno representado:
+El proyecto implementa dos paradigmas de simulación, cada uno seleccionado por su adecuación estructural al fenómeno representado. En cada caso se describe primero el modelo conceptual y luego la herramienta computacional que lo implementa.
 
-### pysd — Dinámica de Sistemas (`Oferta Hídrica`)
+### Dinámica de Sistemas — Módulo de Oferta Hídrica
 
-| | |
-|---|---|
-| **Librería** | [`pysd`](https://pysd.readthedocs.io) v3.14.3 |
-| **Paradigma** | Dinámica de Sistemas (System Dynamics) — simulación continua |
-| **Aplicación** | Modela el subsistema de distribución de agua como un sistema de **stocks** (volúmenes acumulados) y **flujos** (tasas de entrada y salida) con **estructuras de retroalimentación**. Las **variables de estado** evolucionan en tiempo continuo discretizado, capturando la dinámica acumulativa del agotamiento hídrico a lo largo del horizonte de planificación bajo incertidumbre estocástica en las pérdidas. |
-
-pysd permite codificar modelos de Dinámica de Sistemas directamente en Python sin requerir un diagrama Vensim/Stella externo; el módulo `modelo_simulacion_oferta_hidrica.py` define explícitamente los **niveles** (stocks), las **tasas** (flujos) y las ecuaciones de estado del sistema.
-
-### SimPy — Eventos Discretos (`Simulación de Cultivo`)
+La **Dinámica de Sistemas** (System Dynamics) es el paradigma adecuado para representar fenómenos con comportamiento dinámico continuo, estructura causal de retroalimentación y acumulaciones. En el subsistema hidrológico, la variable de nivel central —el volumen disponible en el predio— evoluciona temporalmente bajo la acción de flujos de entrada (desmarque) y flujos de salida (pérdidas estocásticas y consumo), con perturbaciones exógenas puntuales (recargas). Esta estructura causal de stocks y tasas, propia de la simulación continua, no puede representarse de forma natural mediante eventos discretos.
 
 | | |
 |---|---|
-| **Librería** | [`simpy`](https://simpy.readthedocs.io) ≥ 4.0.0 |
-| **Paradigma** | Simulación de Eventos Discretos (Discrete-Event Simulation) |
-| **Aplicación** | Modela el ciclo agronómico de cada parcela como una **entidad** con **procesos** concurrentes que ejecutan **transiciones de estado** (fenológicas e hídricas) al ocurrir **eventos** programados en el **calendario de eventos** del motor. La ejecución orientada a eventos avanza el reloj de simulación únicamente cuando ocurre un evento, lo que es computacionalmente eficiente para horizontes largos con baja densidad de eventos activos. |
+| **Paradigma** | Dinámica de Sistemas (System Dynamics) — simulación continua de variables de nivel y flujos |
+| **Implementación** | [`pysd`](https://pysd.readthedocs.io) v3.14.3 |
+| **Aplicación** | Modela el subsistema hidrológico como un sistema de **variables de nivel** (stocks de agua) y **tasas** (flujos de entrada y salida) con **estructura de retroalimentación**. Las acumulaciones evolucionan bajo incertidumbre hidrológica estocástica, capturando el comportamiento dinámico del agotamiento hídrico a lo largo del horizonte de planificación. |
+
+La implementación en pysd permite codificar el modelo de Dinámica de Sistemas directamente en Python sin requerir un diagrama Vensim/Stella externo. El módulo `modelo_simulacion_oferta_hidrica.py` define explícitamente las **variables de nivel** (stocks), las **tasas** (flujos) y las ecuaciones de evolución temporal del subsistema hidrológico.
+
+### Simulación de Eventos Discretos — Módulo de Simulación de Cultivo
+
+La **Simulación de Eventos Discretos** (Discrete-Event Simulation, DES) es el paradigma adecuado para sistemas cuyo estado cambia únicamente en instantes discretos definidos por la ocurrencia de eventos. El ciclo de vida del cultivo —con sus transiciones fenológicas, eventos de riego y decisiones de asignación de recursos— es inherentemente discreto: entre eventos el sistema permanece en un estado constante. La simulación dirigida por eventos representa este comportamiento con fidelidad sin procesar estados inactivos.
+
+| | |
+|---|---|
+| **Paradigma** | Simulación de Eventos Discretos (Discrete-Event Simulation) — simulación dirigida por eventos |
+| **Implementación** | [`simpy`](https://simpy.readthedocs.io) ≥ 4.0.0 |
+| **Aplicación** | Modela el **ciclo de vida del cultivo** de cada parcela como una **entidad** con **procesos** concurrentes que ejecutan **transiciones de estado** fenológicas e hídricas al ocurrir **eventos** programados en el **calendario de eventos**. La ejecución dirigida por eventos avanza el reloj de simulación únicamente ante la ocurrencia de un evento, sin procesar estados intermedios inactivos. |
 
 ### Instalación de dependencias
 
