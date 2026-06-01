@@ -97,7 +97,7 @@ flowchart LR
 
 ## 3. Módulo 1 — Oferta Hídrica (Dinámica de Sistemas)
 
-El módulo simula **cuánta agua llega al predio** a lo largo de 365 días, generando un calendario para cada escenario de desmarque. La incertidumbre sobre el desmarque final se maneja produciendo 5 escenarios en paralelo.
+El módulo simula **cuánta agua llega al predio** a lo largo de 365 días, generando un calendario para cada escenario de desmarque. La incertidumbre sobre el desmarque final se maneja produciendo E escenarios en paralelo.
 
 ```mermaid
 flowchart TD
@@ -110,7 +110,7 @@ flowchart TD
     PL["PERDIDA_CONDUCCION ~ U(min,max)\nPERDIDA_FILTRACION ~ U(min,max)"]:::param
     CA["CALENDARIO_PARADAS\nFRECUENCIA_TURNO\nDURACION_MANTENIMIENTO"]:::param
 
-    D0 --> ESC["escenarios.py\nd₋₂, d₋₁, d₀, d₊₁, d₊₂\n(5 escenarios fijos, valores = d₀ ± i·Δd)"]:::proc
+    D0 --> ESC["escenarios.py\nd₋₂, d₋₁, d₀, d₊₁, d₊₂\n(E escenarios fijos, valores = d₀ ± i·Δd)"]:::proc
 
     ESC --> ESCLOOP["eᵢ = e₀"]:::proc
     CA  --> ESCLOOP
@@ -171,7 +171,7 @@ En la versión actual del modelo, el regante ingresa su mejor estimación como `
 
 ### 3.2 Generación de escenarios de desmarque
 
-Dado que el desmarque final es incierto, el modelo genera **5 escenarios** que cubren un rango de posibles realizaciones alrededor de la estimación central del regante, variando en pasos de `SALTO_DESMARQUE`:
+Dado que el desmarque final es incierto, el modelo genera **E escenarios** que cubren un rango de posibles realizaciones alrededor de la estimación central del regante, variando en pasos de `SALTO_DESMARQUE`:
 
 $$
 d(i) = d_0 + i \cdot \Delta d, \quad i \in \{-2,\,-1,\,0,\,+1,\,+2\}
@@ -257,7 +257,7 @@ flowchart TD
     classDef data  fill:#fef9c3,stroke:#ca8a04,color:#713f12
     classDef dec   fill:#fff7ed,stroke:#ea580c,color:#7c2d12
 
-    CO[("CalendarioOferta.csv\n5 escenarios")]:::data
+    CO[("CalendarioOferta.csv\nE escenarios")]:::data
     CLI["datosclima.csv\nETo(t), PP(t)"]:::param
     DC["data_cultivos.csv\nKcb, fases fenológicas"]:::param
     CAL["calendario_siembra.csv\nfiltro de cultivos por mes"]:::param
@@ -498,6 +498,64 @@ El reporte `ReporteParticiones.html` incluye para cada escenario:
 - Gráfico de humedad volumétrica diaria
 - Calendario de riego de dos paneles: *llegadas del canal* (desglose por destino) y *agua aplicada* (desglose por fuente)
 
+### 4.7 Archivos de entrada — formatos de columnas
+
+A continuación se describe la estructura exacta que deben tener los CSV de entrada del módulo 2. Cada fila de los archivos de múltiples regantes/cultivos representa un elemento independiente.
+
+#### `datosclima.csv` — serie climática diaria
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| `Fecha` | `YYYY-MM-DD` | Fecha del registro |
+| `[Min] % Humedad Relativa` | float | Humedad relativa mínima diaria (%) |
+| `[Prom] m/s Velocidad de Viento` | float | Velocidad media del viento (m/s) |
+| `[Prom] mm Precipitación` | float | Precipitación media diaria (mm) |
+| `[Prom] mm Evapotranspiración` | float | ET₀ de referencia diaria (mm) |
+
+Fuente: CEAZAMet (estaciones meteorológicas del valle de Elqui).
+
+#### `data_cultivos.csv` — parámetros fenológicos FAO-56
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| `nombre` | str | Identificador del cultivo (clave de unión con otros CSV) |
+| `L_ini`, `L_des`, `L_med`, `L_fin` | int | Duración de cada fase fenológica (días) |
+| `Kc_ini`, `Kc_med`, `Kc_fin` | float | Coeficiente de cultivo $K_c$ por fase |
+| `Kcb_ini`, `Kcb_med`, `Kcb_fin` | float | Coeficiente basal $K_{cb}$ por fase |
+| `h` | float | Altura máxima del cultivo (m), para calcular $K_{cb,max}$ |
+| `p` | float | Fracción de agotamiento sin estrés (FAO-56 Tabla 22) |
+| `Ze` | float | Profundidad de la capa evaporante (m) |
+| `few` | float | Fracción del suelo expuesto al sol y húmedo |
+
+#### `productividad_cultivos.csv` — parámetros económicos
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| `nombre` | str | Identificador del cultivo |
+| `enero` … `diciembre` | float | Precio mayorista mensual (CLP/ha, ajustado IPC 04/2026) |
+| `costo` | float | Costo de producción total (CLP/ha) |
+| `rendimiento` | float | Rendimiento esperado (kg/ha o unidades/ha) |
+| `unidad` | str | `"kg"` o `"unidad"` — determina la unidad de `rendimiento` |
+
+#### `regantes.csv` — características prediales
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| `id` | int | Identificador único del regante |
+| `nombre` | str | Nombre descriptivo |
+| `frecuencia_dias` | int | Días entre turnos de riego |
+| `hectareas` | float | Superficie total del predio (ha) |
+| `fraccion_cultivada` | float | Fracción de la superficie efectivamente cultivada (0–1) |
+| `capacidad_estanque_m3` | float | Capacidad máxima del estanque predial (m³) |
+| `nivel_estanque_inicial_m3` | float | Nivel inicial del estanque al comenzar la simulación (m³) |
+
+#### `calendario_siembra.csv` — restricciones estacionales
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| `nombre` | str | Identificador del cultivo |
+| `enero` … `diciembre` | int | `1` = siembra permitida ese mes; `0` = restringida |
+
 ---
 
 ## 5. Flujo de Datos end-to-end
@@ -524,7 +582,7 @@ flowchart TD
     EST --> IV["initial_values.py\n± SALTO_DESMARQUE"]:::cfg
 
     subgraph MOH["Módulo 1 — Oferta Hídrica · pysd"]
-        MSA["modelo_simulacion_oferta_hidrica.py\n5 escenarios de desmarque\npérdidas aleatorias · paradas"]:::proc
+        MSA["modelo_simulacion_oferta_hidrica.py\nE escenarios de desmarque\npérdidas aleatorias · paradas"]:::proc
     end
 
     IV --> MSA
