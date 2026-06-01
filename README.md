@@ -481,6 +481,10 @@ Para cada cultivo se descargó la serie mensual 2014–2025 con IPC ajustado. El
 
 Extraídos de las [Fichas de Costo de Hortalizas](https://www.odepa.gob.cl/fichas-de-costo-de-hortalizas) (ODEPA). Los valores de ficha están expresados en pesos nominales del año de publicación; se aplicó un **ajuste proporcional al mismo IPC** utilizado en la consulta de series de tiempo (IPC de 04/2026) para llevar costos y rendimientos a valores reales comparables con los precios.
 
+**Figura 3.** Precio promedio mensual por unidad comercial para los ocho cultivos del modelo, calculado como promedio interanual 2014–2025 de las series ODEPA ajustadas por IPC a base 04/2026. La estacionalidad observada en cada cultivo es la que determina el precio de venta aplicado según el mes de cosecha en la optimización combinatoria.
+
+![Precio Promedio Mensual Hortalizas](docs/precios_hortalizas.png)
+
 Por cada combinación óptima el modelo calcula los siguientes indicadores:
 
 **Hídricos:**
