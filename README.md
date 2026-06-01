@@ -391,12 +391,24 @@ El reporte `ReporteParticiones.html` incluye para cada escenario:
 
 ```mermaid
 flowchart TD
+    classDef src  fill:#f0fdf4,stroke:#15803d,color:#14532d
     classDef cfg  fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
     classDef proc fill:#dcfce7,stroke:#16a34a,color:#14532d
     classDef data fill:#fef9c3,stroke:#ca8a04,color:#713f12
     classDef out  fill:#fce7f3,stroke:#db2777,color:#831843
 
-    IV["initial_values.py"]:::cfg
+    %% ── Fuentes de datos externas ──────────────────────────
+    CEAZAMET["CEAZAMet\nestaciones meteorológicas\nhist. valle Elqui"]:::src
+    NIEVE["CEAZA Nieve\nnivel de nieve\ncuenca Elqui"]:::src
+    DGA["DGA Boletines\nnivel Puclaro\ncaudal río Elqui"]:::src
+
+    %% ── Preparación de entradas ─────────────────────────────
+    CEAZAMET -->|"serie histórica\nETo + clima"| CLIMA["datosclima.csv\ndatos_clima_365dias.csv"]:::data
+    NIEVE    -->|"predictores\nhidrológicos"| EST["Estimación desmarque\nPORCENTAJE_DESMARQUE_FINAL"]:::cfg
+    DGA      -->|"predictores\nhidrológicos"| EST
+
+    %% ── Módulo 1: Oferta Hídrica ────────────────────────────
+    EST --> IV["initial_values.py\n± SALTO_DESMARQUE"]:::cfg
 
     subgraph MOH["Módulo 1 — Oferta Hídrica · pysd"]
         MSA["modelo_sistema_agua.py\n5 escenarios de desmarque\npérdidas aleatorias · paradas"]:::proc
@@ -405,16 +417,18 @@ flowchart TD
     IV --> MSA
     MSA --> CO[("CalendarioOferta.csv\nDía × Escenario")]:::data
 
+    %% ── Módulo 2: Simulación de Cultivo ─────────────────────
     PAR["parametros.py"]:::cfg
-    INP["data_cultivos.csv\ndatosclima.csv\nregantes.csv\ncalendario_siembra.csv\nproductividad_cultivos.csv"]:::cfg
+    INP["data_cultivos.csv\nregantes.csv\ncalendario_siembra.csv\nproductividad_cultivos.csv"]:::cfg
 
     subgraph MSC["Módulo 2 — Simulación de Cultivo · SimPy"]
         SIM["simular_demanda.py\nFAO-56 dual coef. + f(H)=Hᵅ\ndespacho canal / estanque / sub\nC(n+P−1, P) combinaciones"]:::proc
     end
 
-    CO  --> SIM
-    PAR --> SIM
-    INP --> SIM
+    CO    --> SIM
+    CLIMA --> SIM
+    PAR   --> SIM
+    INP   --> SIM
 
     SIM --> HTML["ReporteParticiones.html"]:::out
     SIM --> R1["ReporteEscenarios.csv"]:::out
