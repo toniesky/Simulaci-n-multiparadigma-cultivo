@@ -63,7 +63,7 @@ flowchart LR
     subgraph M1["① Oferta Hídrica — Dinámica de Sistemas"]
         direction TB
         P1["📄 initial_values.py\nParámetros del canal"]:::param
-        SD["⚙️ modelo_simulacion_oferta_hidrica.py\n5 escenarios × T días\nPérdidas U(min,max)"]:::engine
+        SD["⚙️ modelo_simulacion_oferta_hidrica.py\nE escenarios × T días\nPérdidas U(min,max)"]:::engine
         P1 --> SD
     end
 
