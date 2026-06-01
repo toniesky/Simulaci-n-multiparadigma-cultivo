@@ -77,17 +77,17 @@ flowchart TD
     classDef out   fill:#fef9c3,stroke:#ca8a04,color:#713f12
     classDef dec   fill:#fff7ed,stroke:#ea580c,color:#7c2d12
 
-    D0["PORCENTAJE_DESMARQUE_FINAL  →  d₀\nSALTO_DESMARQUE  →  Δd"]:::param
+    D0["PORCENTAJE_DESMARQUE_FINAL  →  d₀\nSALTO_DESMARQUE  →  Δd\nNUM_ESCENARIOS  →  E\nDIA_INICIO  →  t₀\nHORIZONTE  →  T"]:::param
     PL["PERDIDA_CONDUCCION ~ U(min,max)\nPERDIDA_FILTRACION ~ U(min,max)\n(V.A. uniforme, muestreada cada día)"]:::param
     CA["CALENDARIO_PARADAS\nFRECUENCIA_TURNO\nDURACION_MANTENIMIENTO"]:::param
 
     D0 --> ESC["escenarios.py\nd₋₂, d₋₁, d₀, d₊₁, d₊₂\n(5 escenarios fijos, valores = d₀ ± i·Δd)"]:::proc
 
-    ESC --> ESCLOOP["e = escenario actual (−2)"]:::proc
+    ESC --> ESCLOOP["eᵢ = e₀"]:::proc
     CA  --> ESCLOOP
     PL  --> ESCLOOP
 
-    ESCLOOP --> LOOP["tᵢ = 1"]:::proc
+    ESCLOOP --> LOOP["tᵢ = t₀"]:::proc
 
     LOOP --> T{"¿TurnoActivo\nAND\nNO EnParada?"}:::dec
     T -->|"No"| Z["OfertaSuperficial = 0 m³"]:::out
@@ -95,13 +95,13 @@ flowchart TD
     Q  --> REC["Registrar fila (tᵢ, eᵢ, Q_neta, flags)"]:::proc
     Z  --> REC
 
-    REC --> NEXTD{"¿tᵢ < 365?"}:::dec
+    REC --> NEXTD{"¿tᵢ < T?"}:::dec
     NEXTD -->|"Sí: tᵢ = tᵢ + 1"| LOOP
-    NEXTD -->|"No: tᵢ = 0"| NEXTE{"¿eᵢ < +2?"}:::dec
+    NEXTD -->|"No: tᵢ = t₀"| NEXTE{"¿eᵢ < E?"}:::dec
     NEXTE -->|"Sí: eᵢ = eᵢ + 1"| ESCLOOP
     NEXTE -->|"No"| CO
 
-    CO[("CalendarioOferta.csv\n365 días × 5 escenarios\nOfertaSuperficial, Pérdidas, Flags")]:::out
+    CO[("CalendarioOferta.csv\nT días × E escenarios\nOfertaSuperficial, Pérdidas, Flags")]:::out
 ```
 
 ### 3.1 Parámetros configurables
