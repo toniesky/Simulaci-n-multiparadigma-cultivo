@@ -77,11 +77,11 @@ flowchart TD
     classDef out   fill:#fef9c3,stroke:#ca8a04,color:#713f12
     classDef dec   fill:#fff7ed,stroke:#ea580c,color:#7c2d12
 
-    D0["PORCENTAJE_DESMARQUE_FINAL\n± SALTO_DESMARQUE\n→ 5 valores de desmarque"]:::param
+    D0["PORCENTAJE_DESMARQUE_FINAL  →  d₀\nSALTO_DESMARQUE  →  Δd"]:::param
     PL["PERDIDA_CONDUCCION\nPERDIDA_FILTRACION\n(rangos uniformes)"]:::param
     CA["CALENDARIO_PARADAS\nFRECUENCIA_TURNO\nDURACION_MANTENIMIENTO"]:::param
 
-    D0 --> ESC["escenarios.py\ngenera d₋₂, d₋₁, d₀, d₊₁, d₊₂"]:::proc
+    D0 --> ESC["escenarios.py\nd₋₂, d₋₁, d₀, d₊₁, d₊₂\n(5 escenarios fijos, valores = d₀ ± i·Δd)"]:::proc
 
     ESC --> LOOP["Para cada día t = 1…365\n× cada escenario i = −2…+2"]:::proc
     CA  --> LOOP
