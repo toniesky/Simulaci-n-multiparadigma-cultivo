@@ -63,7 +63,7 @@ flowchart LR
     subgraph M1["① Oferta Hídrica — Dinámica de Sistemas"]
         direction TB
         P1["📄 initial_values.py\nParámetros del canal"]:::param
-        SD["⚙️ modelo_sistema_agua.py\n5 escenarios × T días\nPérdidas U(min,max)"]:::engine
+        SD["⚙️ modelo_simulacion_oferta_hidrica.py\n5 escenarios × T días\nPérdidas U(min,max)"]:::engine
         P1 --> SD
     end
 
@@ -524,7 +524,7 @@ flowchart TD
     EST --> IV["initial_values.py\n± SALTO_DESMARQUE"]:::cfg
 
     subgraph MOH["Módulo 1 — Oferta Hídrica · pysd"]
-        MSA["modelo_sistema_agua.py\n5 escenarios de desmarque\npérdidas aleatorias · paradas"]:::proc
+        MSA["modelo_simulacion_oferta_hidrica.py\n5 escenarios de desmarque\npérdidas aleatorias · paradas"]:::proc
     end
 
     IV --> MSA
@@ -562,7 +562,7 @@ El proyecto combina dos paradigmas de simulación implementados con librerías P
 | **Paradigma** | Dinámica de sistemas (System Dynamics) |
 | **Uso en el proyecto** | Simula el comportamiento del canal de riego como un sistema de **stocks y flujos** con retroalimentación: el nivel del canal evoluciona en el tiempo según tasas de entrada (desmarque) y salida (consumo + pérdidas), lo que permite capturar fenómenos acumulativos como el agotamiento progresivo del recurso hídrico a lo largo de la temporada. |
 
-PySSD permite escribir modelos directamente en Python sin necesidad de un diagrama Vensim/Stella externo; el modelo `modelo_sistema_agua.py` codifica los niveles y tasas explícitamente.
+PySSD permite escribir modelos directamente en Python sin necesidad de un diagrama Vensim/Stella externo; el modelo `modelo_simulacion_oferta_hidrica.py` codifica los niveles y tasas explícitamente.
 
 ### SimPy — Eventos Discretos (`Simulación de Cultivo`)
 
@@ -590,7 +590,7 @@ PySSD permite escribir modelos directamente en Python sin necesidad de un diagra
 # Desde la raíz del proyecto
 $env:PYTHONIOENCODING='utf-8'
 cd "Oferta Hidrica"
-echo "si" | & "..\\.venv\Scripts\python.exe" modelo_sistema_agua.py
+echo "si" | & "..\\.venv\Scripts\python.exe" modelo_simulacion_oferta_hidrica.py
 ```
 
 Parámetros clave a ajustar en `src/initial_values.py`:

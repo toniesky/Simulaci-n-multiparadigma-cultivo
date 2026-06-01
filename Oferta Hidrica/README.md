@@ -37,7 +37,7 @@ Modelo/
 │
 ├── models/                              # (Reservado para modelos adicionales)
 │
-├── modelo_sistema_agua.py               # Modelo principal
+├── modelo_simulacion_oferta_hidrica.py               # Modelo principal
 ├── create_data.py                       # Script para generar datos de entrada
 └── README.md                            # Este archivo
 ```
@@ -151,7 +151,7 @@ Crea los 3 calendarios CSV en `data/inputs/`
 
 ### 2. Ejecutar el modelo
 ```bash
-python modelo_sistema_agua.py
+python modelo_simulacion_oferta_hidrica.py
 ```
 
 Salida esperada:
@@ -207,7 +207,7 @@ Para ajustar el modelo:
 3. **Ejecutar nuevamente**:
    ```bash
    python create_data.py
-   python modelo_sistema_agua.py
+   python modelo_simulacion_oferta_hidrica.py
    ```
 
 ---

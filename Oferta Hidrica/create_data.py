@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from src.initial_values import TIEMPO_TOTAL, FECHA_INICIO
 
 # ===== CALENDARIO DE TURNOS =====
-# NO SE GENERA - Se calcula dinámicamente en modelo_sistema_agua.py
+# NO SE GENERA - Se calcula dinámicamente en modelo_simulacion_oferta_hidrica.py
 # # Turno cada FRECUENCIA_TURNO días, con duración DURACION_TURNO
 # fecha_inicio = datetime.strptime(FECHA_INICIO, "%Y-%m-%d")
 # turnos_data = []
@@ -60,7 +60,7 @@ print("[OK] CalendarioParadas.csv creado")
 print(f"   Días en parada: {len(df_paradas[df_paradas['EnParada'] == 1])}")
 
 # ===== CALENDARIO DE APERTURA =====
-# NO SE GENERA - Se calcula dinámicamente en modelo_sistema_agua.py
+# NO SE GENERA - Se calcula dinámicamente en modelo_simulacion_oferta_hidrica.py
 # # El canal está abierto:
 # # - Día 1 de cada turno (para Opción 1 - desmarque inicio)
 # # - Último día del turno (para Opción 2 - desmarque final)

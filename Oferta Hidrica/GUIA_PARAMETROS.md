@@ -103,7 +103,7 @@ Resultado: Sistema más conservador
 
 1. Edita initial_values.py con los valores que desees
 2. Guarda el archivo
-3. Ejecuta: python modelo_sistema_agua.py
+3. Ejecuta: python modelo_simulacion_oferta_hidrica.py
 4. Mira los resultados en: data/outputs/CalendarioOferta_*.csv
 
 

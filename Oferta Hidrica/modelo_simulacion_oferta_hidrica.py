@@ -15,7 +15,7 @@ Punto de entrada principal. La lógica está organizada en:
     initial_values.py <- parámetros configurables por el usuario
 
 Ejecutar directamente:
-  python modelo_sistema_agua.py
+  python modelo_simulacion_oferta_hidrica.py
 """
 
 import os

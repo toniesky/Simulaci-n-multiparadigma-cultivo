@@ -427,7 +427,7 @@ económico.</p></li>
 ├── src/initial_values.py          ← Parámetros del canal y desmarque
 ├── modulos/
 │   └── escenarios.py              ← Generación de 5 escenarios ±SALTO
-├── modelo_sistema_agua.py         ← Punto de entrada — genera CalendarioOferta.csv
+├── modelo_simulacion_oferta_hidrica.py         ← Punto de entrada — genera CalendarioOferta.csv
 └── data/outputs/
     └── CalendarioOferta.csv       ← Salida: oferta diaria por escenario
 
@@ -1078,7 +1078,7 @@ y <em>agua aplicada</em> (desglose por fuente)</p>
 <pre><code>initial_values.py
         │
         ▼
-modelo_sistema_agua.py ──────────────────────────────► CalendarioOferta.csv
+modelo_simulacion_oferta_hidrica.py ──────────────────────────────► CalendarioOferta.csv
    (5 escenarios de desmarque,                           (Dia × Escenario)
     pérdidas aleatorias,
     paradas de mantenimiento)
@@ -1110,7 +1110,7 @@ productividad_cultivos.csv  simulacion_cultivo.py
 <pre class="powershell"><code># Desde la raíz del proyecto
 $env:PYTHONIOENCODING=&#39;utf-8&#39;
 cd &quot;Oferta Hidrica&quot;
-echo &quot;si&quot; | &amp; &quot;..\\.venv\Scripts\python.exe&quot; modelo_sistema_agua.py</code></pre>
+echo &quot;si&quot; | &amp; &quot;..\\.venv\Scripts\python.exe&quot; modelo_simulacion_oferta_hidrica.py</code></pre>
 <p>Parámetros clave a ajustar en <code>src/initial_values.py</code>: -
 <code>PORCENTAJE_DESMARQUE_FINAL</code> — desmarque base del escenario
 central - <code>SALTO_DESMARQUE</code> — diferencia entre escenarios

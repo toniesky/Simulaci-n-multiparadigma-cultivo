@@ -21,7 +21,7 @@ cd "c:\Users\anton\OneDrive\Desktop\Capstone\Modelo\Oferta Hidrica"
 
 Write-Host "`n=== EJECUTANDO MODELO ===" -ForegroundColor Cyan
 .\.venv\Scripts\python.exe create_data.py
-.\.venv\Scripts\python.exe modelo_sistema_agua.py
+..\.venv\Scripts\python.exe modelo_simulacion_oferta_hidrica.py
 
 Write-Host "`n=== VERIFICANDO CSV ===" -ForegroundColor Cyan
 .\.venv\Scripts\python.exe -c "import pandas as pd; df = pd.read_csv('data/outputs/CalendarioOferta.csv'); turno = df[df['AperturaCanal']==1].iloc[0]; print(f'Primer turno: Dia {turno[\"Dia\"]}, OfertaSuperficial = {turno[\"OfertaSuperficial\"]:.2f} m3'); print(f'Esperado: ~155.52 m3 (8 acciones × 43.2 × 45% desmarque)')"
