@@ -490,13 +490,17 @@ Obtenidos del sistema [Series de tiempo — Precios Hortalizas](https://aplicati
 - Tipo de precios: *Reales* (ajustados por IPC a la fecha de consulta)
 - Tipo consulta: *Serie anual*
 
-Para cada cultivo se descargó la serie mensual 2014–2025 con IPC ajustado. El precio representativo de cada mes se calculó como el **promedio intermensual**: promedio de todos los valores de enero entre 2014 y 2025, luego todos los febreros, etc. El precio unitario (CLP por unidad comercial) se multiplicó por el rendimiento (`rendimiento`) para convertirlo a **CLP/ha**, que es el valor almacenado en cada columna mensual. La unidad comercial de cada cultivo queda registrada en la columna `unidad` (`kg` para tomate, `unidad` para el resto): determina qué mide `rendimiento` y cómo se etiqueta la producción en el reporte.
+Para cada cultivo se descargó la serie mensual 2014–2025 con precios ya ajustados por IPC a base 04/2026 (opción *Reales* del sistema ODEPA). A partir de esa serie se calculó el **promedio interanual por mes**: se promedian todos los valores de enero de 2014 a 2025, luego todos los febreros, y así para cada mes del año. El resultado es un vector de 12 precios representativos que captura la estacionalidad típica del cultivo sin estar distorsionado por años atípicos.
+
+> **Por qué este procedimiento:** al expresar todos los precios en pesos de abril de 2026 (misma base IPC) y luego promediar por mes a lo largo de 11 años, todos los cultivos quedan en la **misma escala monetaria real**. Esto permite comparar directamente, por ejemplo, si la lechuga escarola genera mayor margen que el repollo en marzo, sin que la comparación se vea afectada por la inflación de distintos períodos. Es la única forma robusta de ordenar cultivos por rentabilidad relativa cuando sus precios tienen estacionalidades distintas.
+
+El precio unitario (CLP por unidad comercial) se multiplicó por el rendimiento (`rendimiento`) para convertirlo a **CLP/ha**, que es el valor almacenado en cada columna mensual. La unidad comercial de cada cultivo queda registrada en la columna `unidad` (`kg` para tomate, `unidad` para el resto).
 
 **Rendimiento y costo (columnas `rendimiento`, `costo`, CLP/ha y unidades/ha ó kg/ha):**
 
-Extraídos de las [Fichas de Costo de Hortalizas](https://www.odepa.gob.cl/fichas-de-costo-de-hortalizas) (ODEPA). Los valores de ficha están expresados en pesos nominales del año de publicación; se aplicó un **ajuste proporcional al mismo IPC** utilizado en la consulta de series de tiempo (IPC de 04/2026) para llevar costos y rendimientos a valores reales comparables con los precios.
+Extraídos de las [Fichas de Costo de Hortalizas](https://www.odepa.gob.cl/fichas-de-costo-de-hortalizas) (ODEPA). Los valores de ficha están en pesos nominales del año de publicación; se aplicó el **mismo ajuste IPC (base 04/2026)** para llevar costos y rendimientos a valores reales comparables con los precios — garantizando que el margen calculado sea consistente en todas las columnas.
 
-**Figura 3.** Precio promedio mensual por unidad comercial para los ocho cultivos del modelo, calculado como promedio interanual 2014–2025 de las series ODEPA ajustadas por IPC a base 04/2026. La estacionalidad observada en cada cultivo es la que determina el precio de venta aplicado según el mes de cosecha en la optimización combinatoria.
+**Figura 3.** Precio promedio mensual por unidad comercial para los ocho cultivos, calculado como promedio interanual de los 11 años de la serie ODEPA 2014–2025, con todos los valores ajustados a pesos reales de abril de 2026 (IPC base 04/2026). Al estar en la misma base real, la figura permite comparar directamente qué cultivo es más rentable que otro en cada mes del año. La estacionalidad aquí graficada es la que el modelo aplica como precio de venta según el mes de cosecha en la optimización combinatoria.
 
 ![Precio Promedio Mensual Hortalizas](docs/precios_hortalizas.png)
 
