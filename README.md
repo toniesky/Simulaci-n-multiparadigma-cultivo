@@ -354,7 +354,7 @@ donde el margen real considera tanto el margen de comercialización como el cost
 
 Los datos de `productividad_cultivos.csv` provienen de dos fuentes oficiales del ODEPA, con ajuste por IPC:
 
-**Precios de venta (`precio_clp_kg`):**
+**Precios de venta (columnas `enero`–`diciembre`, CLP/ha):**
 
 Obtenidos del sistema [Series de tiempo — Precios Hortalizas](https://aplicativos.odepa.gob.cl/series-precios/series-tiempo) (ODEPA). Para cada cultivo se consultó con la siguiente configuración:
 
@@ -363,9 +363,9 @@ Obtenidos del sistema [Series de tiempo — Precios Hortalizas](https://aplicati
 - Tipo de precios: *Reales* (ajustados por IPC a la fecha de consulta)
 - Tipo consulta: *Serie anual*
 
-Para cada cultivo se descargó la serie mensual 2014–2025 con IPC ajustado. El precio representativo de cada mes se calculó como el **promedio intermensual**: promedio de todos los valores de enero entre 2014 y 2025, luego todos los febreros, etc. El precio final ingresado en el CSV corresponde al **promedio de los meses en que el cultivo se comercializa** (coincidente con su temporada de cosecha).
+Para cada cultivo se descargó la serie mensual 2014–2025 con IPC ajustado. El precio representativo de cada mes se calculó como el **promedio intermensual**: promedio de todos los valores de enero entre 2014 y 2025, luego todos los febreros, etc. El precio unitario (CLP por unidad comercial) se multiplicó por el rendimiento (`rendimiento`) para convertirlo a **CLP/ha**, que es el valor almacenado en cada columna mensual. La unidad comercial de cada cultivo queda registrada en la columna `unidad` (`kg` para tomate, `unidad` para el resto): determina qué mide `rendimiento` y cómo se etiqueta la producción en el reporte.
 
-**Rendimiento y costo (`rendimiento_kg_ha`, `costo_clp_ha`):**
+**Rendimiento y costo (columnas `rendimiento`, `costo`, CLP/ha y unidades/ha ó kg/ha):**
 
 Extraídos de las [Fichas de Costo de Hortalizas](https://www.odepa.gob.cl/fichas-de-costo-de-hortalizas) (ODEPA). Los valores de ficha están expresados en pesos nominales del año de publicación; se aplicó un **ajuste proporcional al mismo IPC** utilizado en la consulta de series de tiempo (IPC de 04/2026) para llevar costos y rendimientos a valores reales comparables con los precios.
 
