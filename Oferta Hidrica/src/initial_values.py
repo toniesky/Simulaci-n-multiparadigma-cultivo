@@ -33,8 +33,7 @@ FECHA_DESMARQUE = "09-01"  # 1 de septiembre
 
 # Salto entre escenarios de desmarque final
 # Cada escenario suma/resta este valor al desmarque base
-# Siempre se generan 5 escenarios: -2, -1, 0, +1, +2
-# Ejemplo: salto=0.03 y base=0.15 → 9%, 12%, 15%, 18%, 21%
+
 SALTO_DESMARQUE = 0.025  
 
 # ============================== AGUA SUBTERRÁNEA (RECARGAS) ==============================
@@ -73,7 +72,13 @@ DURACION_MANTENIMIENTO = 7  # días
 #   - Parada 1: días 20-33 (14 días)
 #   - Parada 2: días 150-156 (7 días)
 #   - Parada 3: días 300-306 (7 días)
-CALENDARIO_PARADAS = [250]  # Días de inicio (configurable)    
+CALENDARIO_PARADAS = [
+    25,   # Día 25  (25 ene) — inspección post-temporada alta
+    100,  # Día 100 (10 abr) — mantenimiento otoñal de compuertas
+    160,  # Día 160 ( 9 jun) — mantenimiento mayor de invierno
+    250,  # Día 250 ( 7 sep) — limpieza pre-primavera
+    320,  # Día 320 (16 nov) — revisión pre-temporada de riego
+]
 
 # ============================== S,OCKS INICIALES ==============================
 
@@ -102,7 +107,7 @@ TIEMPO_TOTAL = 365  # días (1 año)
 PASO_SIMULACION = 1  # día
 
 # Fecha de inicio de la simulación
-FECHA_INICIO = "2024-01-01"  # Formato YYYY-MM-DD (configurable)
+FECHA_INICIO = "2026-01-01"  # Formato YYYY-MM-DD (configurable)
 
 # NOTA: FECHA_DESMARQUE define cuándo cambia de desmarque inicial a desmarque final
 # Formato: MM-DD (mes-día), se aplica cada año
