@@ -324,7 +324,7 @@ $$
 
 $$
 K_s(t)=\begin{cases}
-1 & D_r(t-1)\le \text{AFA} \\[4pt]
+1 & D_r(t-1)\le \text{AFA} \\
 \dfrac{\text{ADT}-D_r(t-1)}{\text{ADT}-\text{AFA}} & D_r(t-1)>\text{AFA}
 \end{cases}
 $$
@@ -389,7 +389,7 @@ Los parámetros de suelo (`CC`, `PMP`, `Ze_evap`, `AET`, `AFE`) se definen en `p
 
 ### 4.3 Asignación de recursos hídricos (despacho por prioridad)
 
-En cada **evento de riego** el simulador satisface la demanda neta del cultivo ($DN = \max(0, ET_{real} - PP)$) asignando los **recursos hídricos disponibles** en el siguiente orden de prioridad:
+En cada **evento de riego** el simulador satisface la demanda neta del cultivo ($D_N = \max(0,\; ET_r - PP)$, donde $ET_r$ es la evapotranspiración real bajo estrés) asignando los **recursos hídricos disponibles** en el siguiente orden de prioridad:
 
 ```
 1. CANAL (eventos de turno con flujo activo):
