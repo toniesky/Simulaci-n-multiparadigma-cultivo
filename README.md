@@ -18,10 +18,7 @@
  - 3.5 Salida: CalendarioOferta.csv
 4. [Módulo 2 — Simulación de Cultivo (Eventos Discretos)](#4-módulo-2--simulación-de-cultivo-eventos-discretos)
  - 4.1 Balance hídrico FAO-56 doble coeficiente
- - Formulación base (potencial): $ET_c = (K_{cb}+K_e)\cdot ET_0$
- - Extensión 1 — estrés hídrico radicular ($K_s$)
- - Extensión 2 — retención no lineal por textura ($f(H)=H^\alpha$)
- - Extensión 3 — estado post-riego con fracción de drenaje ($f_{drain}$)
+ - 4.2 Distribución de calidad y respuesta al estrés hídrico acumulado
  - 4.3 Política de Riego
  - 4.4 Restricciones estacionales de siembra
  - 4.5 Optimización combinatoria de portafolio
@@ -412,6 +409,82 @@ El parámetro `FRACCION_DRENAJE` en `parametros.py` es **calibrable con sensor v
 
 Los parámetros de suelo (`CC`, `PMP`, `Ze_evap`, `AET`, `AFE`) se definen en `parametros.py`. Las condiciones iniciales de déficit (`De0`, `Dr0`) se fijan en cero (suelo a capacidad de campo al inicio de la siembra).
 
+### 4.2 Distribución de calidad y respuesta al estrés hídrico acumulado
+
+Una vez completada la simulación del balance hídrico diario (§4.1), el modelo evalúa el **impacto acumulado del estrés hídrico percibido durante el ciclo de vida del cultivo** sobre la distribución de calidad del producto. El procedimiento es determinístico y opera sobre dos señales de estrés derivadas directamente de las trayectorias de $K_s(t)$ y $H(t)$ registradas durante la simulación.
+
+#### Señales de estrés integradas durante el ciclo
+
+**S1 — Fracción de agua no cubierta** (déficit hídrico integrado):
+
+$$
+S_1 = \frac{\text{Deficit}_{m3}}{\text{Deficit}_{m3} + \text{Aplicado}_{m3}}
+$$
+
+Captura la proporción del volumen total demandado que no fue satisfecha por ninguna fuente. Un $S_1 = 0$ indica cobertura completa; $S_1 = 1$ indica que el cultivo no recibió riego.
+
+**S2 — Déficit continuo de humedad relativa** (estrés percibido en zona radicular):
+
+$$
+S_2 = \max\!\left(0,\; 1 - \frac{\bar{H}}{70\,\%}\right)
+$$
+
+donde $\bar{H}$ es la humedad relativa media de la zona radicular durante el ciclo ($H = 1 - D_r/\text{ADT}$). El umbral del 70 % corresponde al límite de agotamiento fácilmente aprovechable (AFA); por encima de él $S_2 = 0$ (sin estrés percibido). Esta métrica continua es más robusta que contar días discretos bajo el umbral AFA, ya que los riegos de emergencia pueden producir muchos días bajo el umbral aunque el cultivo se recupere —el conteo binario inflaría artificialmente la señal de estrés.
+
+**Estrés efectivo combinado:**
+
+$$
+S_{eff} = 0.6\cdot S_1 + 0.4\cdot S_2
+$$
+
+con una corrección de curvatura $S_{eff}^{corr} = S_{eff}^{1.3}$ que penaliza más severamente los estrés altos.
+
+#### Factor de respuesta al estrés $K_y$
+
+El coeficiente de respuesta al rendimiento $K_y$ (Allen et al., 1998) pondera el impacto del estrés efectivo según la sensibilidad del cultivo:
+
+$$
+K_y = \begin{cases} 1.1 & \text{cultivos de fruto (tomate, choclo, brócoli, repollo)} \\ 1.0 & \text{cultivos de hoja (lechuga, apio, acelga)} \end{cases}
+$$
+
+La reducción relativa del rendimiento potencial respecto al ideal queda representada por $R = \max(0,\, 1 - K_y \cdot S_{eff}^{corr})$, que opera como indicador interno de penalización.
+
+#### Distribución de calidad
+
+El modelo clasifica la producción simulada en tres categorías:
+
+| Categoría | Factor de valorización | Descripción |
+|---|---|---|
+| **Primera** | 1.0 × precio | Producto sin estrés significativo; cumple estándares de calidad plenos |
+| **Segunda** | 0.6 × precio | Producto con estrés moderado; comercializable con descuento |
+| **Pérdida** | 0.05 × precio | Producto con estrés severo; descartado o sin valor comercial relevante |
+
+Las proporciones de cada categoría se calculan mediante funciones sigmoidal y exponencial del estrés efectivo:
+
+$$
+\text{Primera}_{base} = e^{-1.5\, S_{eff}^{corr}}, \qquad \text{P\'{e}rdida}_{base} = \min\!\left(0.4,\; \frac{1}{1 + e^{-3(S_{eff}^{corr} - 0.6)}}\right)
+$$
+
+$$
+\text{Segunda}_{base} = \max(0,\; 1 - \text{Primera}_{base} - \text{P\'{e}rdida}_{base})
+$$
+
+Las proporciones se ajustan además según la **condición óptima de cultivo** (cobertura $\geq 95\,\%$, $\bar{H} \geq 70\,\%$, $S_{eff} \leq 0.60$) y por **caps escalonados de pérdida** según el nivel de humedad media: a mayor $\bar{H}$, el techo de pérdida admisible es más bajo (desde 0.15 cuando $\bar{H} \geq 80\,\%$ hasta sin cap cuando $\bar{H} < 35\,\%$). Al final se aplica una normalización para garantizar $\text{Primera} + \text{Segunda} + \text{Pérdida} = 1$.
+
+#### Ingreso real ajustado por calidad
+
+El ingreso real que la simulación registra como salida del modelo se obtiene ponderando el ingreso ideal (precio de mercado por producción potencial completa) por el factor de calidad compuesto:
+
+$$
+F = p_1 \cdot 1.0 + p_2 \cdot 0.6 + p_{loss} \cdot 0.05
+$$
+
+$$
+I_{real} = I_{ideal} \cdot F, \qquad \text{Margen}_{real} = I_{real} - \text{Costo}
+$$
+
+donde $p_1$, $p_2$, $p_{loss}$ son las proporciones de Primera, Segunda y Pérdida respectivamente. Esta cadena — balance hídrico diario → señales de estrés acumulado → distribución de calidad → ingreso real — constituye el mecanismo central por el que el estrés hídrico percibido durante el ciclo se traduce en una penalización económica cuantificable, que es la variable que el optimizador combinatorio maximiza en la selección del portafolio.
+
 ### 4.3 Política de Riego
 
 En cada **evento de riego** el proceso de despacho satisface la demanda neta del cultivo ($D_N = \max(0,\; ET_r - PP)$, donde $ET_r$ es la evapotranspiración real bajo estrés) asignando los **recursos hídricos disponibles** en el siguiente orden de prioridad:
@@ -525,10 +598,14 @@ Por cada combinación óptima la simulación registra los siguientes indicadores
 
 | KPI | Descripción |
 |---|---|
-| `Rendimiento_kg_ha` | Rendimiento estimado ajustado por estrés hídrico |
-| `Ingreso_bruto_clp` | Precio × rendimiento × superficie |
-| `Costo_clp` | Costo de insumos y producción |
-| `Margen_real_clp` | Ingreso bruto − costo (objetivo de optimización) |
+| `Ingreso_ideal_clp` | Ingreso potencial = precio mes cosecha × rendimiento × ha (sin descuento por calidad) |
+| `Ingreso_real_clp` | Ingreso ajustado por distribución de calidad: $I_{real} = I_{ideal} \cdot F$ (ver §4.2) |
+| `Costo_clp` | Costo de producción total (CLP/ha, ajustado IPC 04/2026) |
+| `Margen_real_clp` | $I_{real} - Costo$ — variable objetivo de la optimización combinatoria |
+| `Primera_%` | Fraccion de producción de categoría primera calidad (%) |
+| `Segunda_%` | Fracción de categoría segunda calidad (%) |
+| `Perdida_%` | Fracción de producción descartada por estrés (%) |
+| `Produccion_real` | Producción física ajustada = rendimiento × ha × (1 - Perdida_%) |
 
 El reporte `ReporteParticiones.html` organiza, para cada escenario simulado, las siguientes salidas del modelo destinadas al análisis posterior:
 - Indicadores clave (KPI cards) con la descomposición del volumen del canal (riego / almacenamiento / pérdida con porcentajes)
