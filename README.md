@@ -78,7 +78,7 @@ flowchart TD
     classDef dec   fill:#fff7ed,stroke:#ea580c,color:#7c2d12
 
     D0["PORCENTAJE_DESMARQUE_FINAL  →  d₀\nSALTO_DESMARQUE  →  Δd\nNUM_ESCENARIOS  →  E\nDIA_INICIO  →  t₀\nHORIZONTE  →  T"]:::param
-    PL["PERDIDA_CONDUCCION ~ U(min,max)\nPERDIDA_FILTRACION ~ U(min,max)\n(V.A. uniforme, muestreada cada día)"]:::param
+    PL["PERDIDA_CONDUCCION ~ U(min,max)\nPERDIDA_FILTRACION ~ U(min,max)"]:::param
     CA["CALENDARIO_PARADAS\nFRECUENCIA_TURNO\nDURACION_MANTENIMIENTO"]:::param
 
     D0 --> ESC["escenarios.py\nd₋₂, d₋₁, d₀, d₊₁, d₊₂\n(5 escenarios fijos, valores = d₀ ± i·Δd)"]:::proc
