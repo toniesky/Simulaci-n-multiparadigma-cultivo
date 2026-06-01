@@ -44,31 +44,18 @@ El sistema apoya la **toma de decisiones de riego** para un regante con derechos
 
 ## 2. Arquitectura General
 
-```
-Oferta Hidrica/
-│
-├── src/initial_values.py          ← Parámetros del canal y desmarque
-├── modulos/
-│   └── escenarios.py              ← Generación de 5 escenarios ±SALTO
-├── modelo_sistema_agua.py         ← Punto de entrada — genera CalendarioOferta.csv
-└── data/outputs/
-    └── CalendarioOferta.csv       ← Salida: oferta diaria por escenario
-
-Simulación Cultivo/
-│
-├── parametros.py                  ← Todos los parámetros de la simulación
-├── simulacion_cultivo.py          ← Punto de entrada — genera reportes
-├── modulos/
-│   ├── simulacion.py              ← Balance FAO-56 + despacho de agua
-│   ├── kpis.py                    ← Cálculo de indicadores económicos e hídricos
-│   ├── reportes.py                ← Generación del HTML de resultados
-│   └── graficos.py                ← Gráficos PNG embebidos en el HTML
-└── inputs/
-    ├── data_cultivos.csv          ← Coeficientes Kcb por cultivo y fase
-    ├── datosclima.csv             ← ETo diaria (365 días)
-    ├── regantes.csv               ← Superficie, estanque, turno
-    ├── calendario_siembra.csv     ← Disponibilidad mensual por cultivo
-    └── productividad_cultivos.csv ← Precio y rendimiento por cultivo
+```mermaid
+graph LR
+    subgraph OH["Módulo 1 — Oferta Hídrica"]
+        direction TB
+        IV["initial_values.py"] --> MSA["modelo_sistema_agua.py"]
+    end
+    subgraph SC["Módulo 2 — Simulación de Cultivo"]
+        direction TB
+        INP["inputs/*.csv\nparámetros.py"] --> SIM["simular_demanda.py"]
+    end
+    MSA -->|CalendarioOferta.csv| SIM
+    SIM --> REP["ReporteParticiones.html\nSimulacionDemanda.csv"]
 ```
 
 Los dos módulos están **desacoplados**: la Oferta Hídrica produce un CSV que la Simulación de Cultivo consume. Es posible actualizar solo la oferta sin reejecutar la simulación de cultivo, y viceversa.
@@ -402,33 +389,36 @@ El reporte `ReporteParticiones.html` incluye para cada escenario:
 
 ## 5. Flujo de Datos end-to-end
 
-```
-initial_values.py
-        │
-        ▼
-modelo_sistema_agua.py ──────────────────────────────► CalendarioOferta.csv
-   (5 escenarios de desmarque,                           (Dia × Escenario)
-    pérdidas aleatorias,
-    paradas de mantenimiento)
-                                                                │
-                                ┌───────────────────────────────┘
-                                │
-parametros.py ──────────────────┤
-data_cultivos.csv ──────────────┤
-calendario_siembra.csv ─────────┤
-datosclima.csv ─────────────────┤
-regantes.csv ───────────────────▼
-productividad_cultivos.csv  simulacion_cultivo.py
-                                │
-                                │  FAO-56 dual coef.
-                                │  + f(H) = H^α
-                                │  + despacho canal/estanque/sub
-                                │  + C(n+P-1,P) combinaciones
-                                │
-                                ▼
-                    ReporteParticiones.html
-                    ReporteParticiones.csv
-                    SimulacionParticiones.csv
+```mermaid
+flowchart TD
+    classDef cfg  fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
+    classDef proc fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef data fill:#fef9c3,stroke:#ca8a04,color:#713f12
+    classDef out  fill:#fce7f3,stroke:#db2777,color:#831843
+
+    IV["initial_values.py"]:::cfg
+
+    subgraph MOH["Módulo 1 — Oferta Hídrica · pysd"]
+        MSA["modelo_sistema_agua.py\n5 escenarios de desmarque\npérdidas aleatorias · paradas"]:::proc
+    end
+
+    IV --> MSA
+    MSA --> CO[("CalendarioOferta.csv\nDía × Escenario")]:::data
+
+    PAR["parametros.py"]:::cfg
+    INP["data_cultivos.csv\ndatosclima.csv\nregantes.csv\ncalendario_siembra.csv\nproductividad_cultivos.csv"]:::cfg
+
+    subgraph MSC["Módulo 2 — Simulación de Cultivo · SimPy"]
+        SIM["simular_demanda.py\nFAO-56 dual coef. + f(H)=Hᵅ\ndespacho canal / estanque / sub\nC(n+P−1, P) combinaciones"]:::proc
+    end
+
+    CO  --> SIM
+    PAR --> SIM
+    INP --> SIM
+
+    SIM --> HTML["ReporteParticiones.html"]:::out
+    SIM --> R1["ReporteEscenarios.csv"]:::out
+    SIM --> R2["SimulacionDemanda.csv"]:::out
 ```
 
 ---
