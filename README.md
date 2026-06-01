@@ -411,25 +411,47 @@ Los parámetros de suelo (`CC`, `PMP`, `Ze_evap`, `AET`, `AFE`) se definen en `p
 
 ### 4.2 Distribución de calidad y respuesta al estrés hídrico acumulado
 
-Una vez completada la simulación del balance hídrico diario (§4.1), el modelo evalúa el **impacto acumulado del estrés hídrico percibido durante el ciclo de vida del cultivo** sobre la distribución de calidad del producto. El procedimiento es determinístico y opera sobre dos señales de estrés derivadas directamente de las trayectorias de $K_s(t)$ y $H(t)$ registradas durante la simulación.
+#### Base conceptual: relación rendimiento–déficit hídrico en la literatura FAO
 
-#### Señales de estrés integradas durante el ciclo
+La literatura agronómica documenta que el déficit hídrico reduce el rendimiento de forma proporcional al déficit relativo de evapotranspiración. Doorenbos y Kassam (FAO Irrigation and Drainage Paper 33, 1979) formalizaron esta relación mediante:
 
-**S1 — Fracción de agua no cubierta** (déficit hídrico integrado):
+$$
+1 - \frac{Y_a}{Y_m} = K_y\!\left(1 - \frac{ET_a}{ET_m}\right)
+$$
+
+donde $Y_a$ y $Y_m$ son los rendimientos real y máximo, $ET_a$ y $ET_m$ la evapotranspiración real y máxima del período, y $K_y$ el coeficiente de respuesta al rendimiento que varía según el cultivo y la etapa fenológica. El balance hídrico diario FAO-56 (Allen et al., 1998) cuantifica la evapotranspiración real bajo estrés como:
+
+$$
+ET_{real} = K_s\,K_{cb}\,ET_0 + E_s
+$$
+
+donde $K_s \in [0,1]$ es el coeficiente de estrés hídrico que reduce la transpiración cuando el agotamiento en la zona radicular $D_r$ supera el umbral de agotamiento fácilmente aprovechable (AFA). La humedad relativa del perfil de suelo se obtiene directamente del balance como:
+
+$$
+H = 1 - \frac{D_r}{\text{ADT}}
+$$
+
+Esta base conceptual relaciona el déficit hídrico con la reducción del rendimiento total del cultivo. Sin embargo, la literatura no modela de forma explícita la distribución de la producción entre categorías comerciales —primera calidad, segunda calidad y descarte— ni su efecto diferenciado sobre el ingreso del productor. Esa dimensión es central para evaluar la viabilidad económica del portafolio de cultivos, y constituye la motivación de la extensión metodológica que se describe a continuación.
+
+#### Extensión metodológica: señales de estrés acumulado durante el ciclo
+
+Dado que el modelo calcula en cada paso diario las variables $D_r(t)$, $K_s(t)$, el volumen aplicado y la demanda hídrica (§4.1), es posible construir señales de síntesis que representen el estrés acumulado a escala del ciclo productivo completo. Estas señales se formulan como **hipótesis de modelación consistentes con la lógica FAO-56**, no como relaciones físicas universalmente validadas; sus ponderaciones, umbrales y exponentes son parámetros calibrables cuya estimación definitiva deberá realizarse con observaciones de terreno y registros productivos.
+
+**S1 — Fracción de agua no cubierta** (déficit hídrico integrado a escala de ciclo):
 
 $$
 S_1 = \frac{\text{Deficit}_{m3}}{\text{Deficit}_{m3} + \text{Aplicado}_{m3}}
 $$
 
-Captura la proporción del volumen total demandado que no fue satisfecha por ninguna fuente. Un $S_1 = 0$ indica cobertura completa; $S_1 = 1$ indica que el cultivo no recibió riego.
+Representa la proporción del volumen total demandado que no fue satisfecha durante el ciclo completo. Un $S_1 = 0$ indica cobertura plena; $S_1 = 1$ indica ausencia total de riego. Esta formulación es conceptualmente análoga al término $(1 - ET_a/ET_m)$ de FAO-33, pero expresada en términos volumétricos integrados sobre el ciclo en lugar de la evapotranspiración diaria.
 
-**S2 — Déficit continuo de humedad relativa** (estrés percibido en zona radicular):
+**S2 — Déficit continuo de humedad relativa** (estado hídrico promedio de la zona radicular):
 
 $$
 S_2 = \max\!\left(0,\; 1 - \frac{\bar{H}}{70\,\%}\right)
 $$
 
-donde $\bar{H}$ es la humedad relativa media de la zona radicular durante el ciclo ($H = 1 - D_r/\text{ADT}$). El umbral del 70 % corresponde al límite de agotamiento fácilmente aprovechable (AFA); por encima de él $S_2 = 0$ (sin estrés percibido). Esta métrica continua es más robusta que contar días discretos bajo el umbral AFA, ya que los riegos de emergencia pueden producir muchos días bajo el umbral aunque el cultivo se recupere —el conteo binario inflaría artificialmente la señal de estrés.
+donde $\bar{H}$ es la humedad relativa media de la zona radicular durante el ciclo ($H = 1 - D_r/\text{ADT}$). El umbral del 70 % corresponde al límite de agotamiento fácilmente aprovechable (AFA) tal como se define en FAO-56; por encima de él $S_2 = 0$ (sin estrés percibido). Esta señal continua complementa a $S_1$ al reflejar el estado hídrico promedio del perfil, capturando situaciones en que el volumen total aplicado fue suficiente pero la distribución temporal generó períodos prolongados de baja humedad radicular.
 
 **Estrés efectivo combinado:**
 
@@ -437,17 +459,21 @@ $$
 S_{eff} = 0.6\cdot S_1 + 0.4\cdot S_2
 $$
 
-con una corrección de curvatura $S_{eff}^{corr} = S_{eff}^{1.3}$ que penaliza más severamente los estrés altos.
+$$
+S_{eff}^{corr} = S_{eff}^{1.3}
+$$
+
+El índice $S_{eff}$ combina ambas señales con ponderaciones que controlan la contribución relativa de cada componente al estrés resultante; el exponente 1.3 introduce una respuesta no lineal que asigna mayor peso a los niveles de estrés elevados. Las ponderaciones (0.6, 0.4) y el exponente (1.3) son parámetros de hipótesis: sus valores actuales constituyen un punto de partida razonado para la generación de evidencia experimental, no estimaciones definitivas, y deberán calibrarse con datos empíricos de rendimiento y calidad.
 
 #### Factor de respuesta al estrés $K_y$
 
-El coeficiente de respuesta al rendimiento $K_y$ (Allen et al., 1998) pondera el impacto del estrés efectivo según la sensibilidad del cultivo:
+El coeficiente $K_y$ se adopta de la literatura FAO (Doorenbos y Kassam, 1979; Allen et al., 1998) y diferencia la sensibilidad del rendimiento al estrés hídrico según la fisiología del cultivo:
 
 $$
 K_y = \begin{cases} 1.1 & \text{cultivos de fruto (tomate, choclo, brócoli, repollo)} \\ 1.0 & \text{cultivos de hoja (lechuga, apio, acelga)} \end{cases}
 $$
 
-La reducción relativa del rendimiento potencial respecto al ideal queda representada por $R = \max(0,\, 1 - K_y \cdot S_{eff}^{corr})$, que opera como indicador interno de penalización.
+La reducción relativa del rendimiento potencial respecto al ideal queda representada por $R = \max(0,\, 1 - K_y \cdot S_{eff}^{corr})$, que actúa como indicador interno de sensibilidad al estrés efectivo acumulado.
 
 #### Distribución de calidad
 
@@ -459,7 +485,9 @@ El modelo clasifica la producción simulada en tres categorías:
 | **Segunda** | 0.6 × precio | Producto con estrés moderado; comercializable con descuento |
 | **Pérdida** | 0.05 × precio | Producto con estrés severo; descartado o sin valor comercial relevante |
 
-Las proporciones de cada categoría se calculan mediante funciones sigmoidal y exponencial del estrés efectivo:
+Los factores de valorización (1.0, 0.6, 0.05) son parámetros de hipótesis que buscan representar la diferencia de precio entre categorías comerciales típicas en hortalizas de la zona; su estimación definitiva requiere datos de mercado y registros de clasificación de terreno.
+
+Las proporciones de cada categoría se calculan mediante funciones exponencial y sigmoidal del estrés efectivo corregido:
 
 $$
 \text{Primera}_{base} = e^{-1.5\, S_{eff}^{corr}}, \qquad \text{P\'{e}rdida}_{base} = \min\!\left(0.4,\; \frac{1}{1 + e^{-3(S_{eff}^{corr} - 0.6)}}\right)
@@ -469,11 +497,18 @@ $$
 \text{Segunda}_{base} = \max(0,\; 1 - \text{Primera}_{base} - \text{P\'{e}rdida}_{base})
 $$
 
-Las proporciones se ajustan además según la **condición óptima de cultivo** (cobertura $\geq 95\,\%$, $\bar{H} \geq 70\,\%$, $S_{eff} \leq 0.60$) y por **caps escalonados de pérdida** según el nivel de humedad media: a mayor $\bar{H}$, el techo de pérdida admisible es más bajo (desde 0.15 cuando $\bar{H} \geq 80\,\%$ hasta sin cap cuando $\bar{H} < 35\,\%$). Al final se aplica una normalización para garantizar $\text{Primera} + \text{Segunda} + \text{Pérdida} = 1$.
+Los coeficientes de estas funciones (−1.5, −3, 0.6) determinan la sensibilidad y los puntos de inflexión de la respuesta de calidad al estrés acumulado. Representan hipótesis sobre la forma de esta relación y constituyen parámetros calibrables: sus valores actuales son una aproximación inicial que deberá contrastarse con datos empíricos de calidad y rendimiento observados en terreno.
+
+Las proporciones se ajustan adicionalmente mediante reglas condicionadas al estado hídrico del ciclo:
+- **Condición óptima** (cobertura $\geq 95\,\%$, $\bar{H} \geq 70\,\%$, $S_{eff} \leq 0.60$): reduce la proporción de pérdida y redistribuye producción hacia categoría Segunda.
+- **Límites superiores escalonados de pérdida** según humedad media: a mayor $\bar{H}$, el límite superior de la fracción de pérdida admisible disminuye (desde 0.15 cuando $\bar{H} \geq 80\,\%$ hasta sin límite cuando $\bar{H} < 35\,\%$), reflejando la hipótesis de que cultivos con alta humedad sostenida presentan menor proporción de descarte.
+- Al final se aplica una normalización para garantizar $\text{Primera} + \text{Segunda} + \text{Pérdida} = 1$.
+
+Estos ajustes, umbrales y límites son parámetros configurables del modelo. La calibración de su conjunto completo —junto con los coeficientes de las funciones de distribución— constituye parte de la validación experimental prevista para etapas posteriores de la investigación.
 
 #### Ingreso real ajustado por calidad
 
-El ingreso real que la simulación registra como salida del modelo se obtiene ponderando el ingreso ideal (precio de mercado por producción potencial completa) por el factor de calidad compuesto:
+El ingreso real registrado como salida del modelo resulta de ponderar el ingreso ideal (precio de mercado por producción potencial completa) por el factor de calidad compuesto $F$:
 
 $$
 F = p_1 \cdot 1.0 + p_2 \cdot 0.6 + p_{loss} \cdot 0.05
@@ -483,7 +518,7 @@ $$
 I_{real} = I_{ideal} \cdot F, \qquad \text{Margen}_{real} = I_{real} - \text{Costo}
 $$
 
-donde $p_1$, $p_2$, $p_{loss}$ son las proporciones de Primera, Segunda y Pérdida respectivamente. Esta cadena — balance hídrico diario → señales de estrés acumulado → distribución de calidad → ingreso real — constituye el mecanismo central por el que el estrés hídrico percibido durante el ciclo se traduce en una penalización económica cuantificable, que es la variable que el optimizador combinatorio maximiza en la selección del portafolio.
+donde $p_1$, $p_2$, $p_{loss}$ son las proporciones de Primera, Segunda y Pérdida respectivamente. Esta cadena causal —balance hídrico diario (FAO-56) → señales de estrés acumulado → distribución de calidad → ingreso real— constituye la hipótesis central del modelo de calidad: que el estrés hídrico percibido a lo largo del ciclo puede traducirse en una distribución de producción por categoría y, a través de ella, en un impacto económico cuantificable. El propósito de la plataforma experimental es generar datos simulados que permitan contrastar y calibrar esta hipótesis frente a observaciones reales de rendimiento, calidad y rentabilidad.
 
 ### 4.3 Política de Riego
 
