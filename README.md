@@ -76,22 +76,27 @@ flowchart TD
     classDef proc  fill:#dcfce7,stroke:#16a34a,color:#14532d
     classDef out   fill:#fef9c3,stroke:#ca8a04,color:#713f12
     classDef dec   fill:#fff7ed,stroke:#ea580c,color:#7c2d12
+    classDef fb    fill:#f5f3ff,stroke:#7c3aed,color:#3b0764
 
     D0["PORCENTAJE_DESMARQUE_FINAL  →  d₀\nSALTO_DESMARQUE  →  Δd"]:::param
-    PL["PERDIDA_CONDUCCION\nPERDIDA_FILTRACION\n(rangos uniformes)"]:::param
+    PL["PERDIDA_CONDUCCION ~ U(min,max)\nPERDIDA_FILTRACION ~ U(min,max)\n(V.A. uniforme, muestreada cada día)"]:::param
     CA["CALENDARIO_PARADAS\nFRECUENCIA_TURNO\nDURACION_MANTENIMIENTO"]:::param
 
     D0 --> ESC["escenarios.py\nd₋₂, d₋₁, d₀, d₊₁, d₊₂\n(5 escenarios fijos, valores = d₀ ± i·Δd)"]:::proc
 
-    ESC --> LOOP["Para cada día t = 1…365\n× cada escenario i = −2…+2"]:::proc
+    ESC --> LOOP["t = 1"]:::proc
     CA  --> LOOP
     PL  --> LOOP
 
     LOOP --> T{"¿TurnoActivo\nAND\nNO EnParada?"}:::dec
     T -->|"No"| Z["OfertaSuperficial = 0 m³"]:::out
-    T -->|"Sí"| Q["Q_bruta = N_acc × V_acc × dᵢ\nQ_neta = Q_bruta · (1 − Pcond − Pfilt)"]:::proc
-    Q  --> CO
-    Z  --> CO
+    T -->|"Sí"| Q["Pcond ~ U(·), Pfilt ~ U(·)\nQ_bruta = N_acc × V_acc × dᵢ\nQ_neta = Q_bruta · (1 − Pcond − Pfilt)"]:::proc
+    Q  --> REC["Registrar fila\n(t, escenario, Q_neta, flags)"]:::proc
+    Z  --> REC
+
+    REC --> NEXT{"t < 365?"}:::dec
+    NEXT -->|"Sí  →  t = t+1"| LOOP
+    NEXT -->|"No"| CO
 
     CO[("CalendarioOferta.csv\n365 días × 5 escenarios\nOfertaSuperficial, Pérdidas, Flags")]:::out
 ```
