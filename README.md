@@ -21,7 +21,7 @@
      - Extensión 1 — estrés hídrico radicular ($K_s$)
      - Extensión 2 — retención no lineal por textura ($f(H)=H^\alpha$)
      - Extensión 3 — estado post-riego con fracción de drenaje ($f_{drain}$)
-   - 4.3 Fuentes de agua y lógica de despacho
+   - 4.3 Política de Riego
    - 4.4 Restricciones estacionales de siembra
    - 4.5 Optimización combinatoria de portafolio
    - 4.6 KPIs y reporte HTML
@@ -247,6 +247,10 @@ El archivo resultante tiene una fila por día × escenario con las columnas:
 | `RecargaSubterranea` | m³ recargados al acuífero (solo en fecha puntual) |
 | `Escenario` | Identificador del escenario (−2 a +2) |
 
+**Figura 1.** Ejemplo de salida del Módulo 1: calendario de oferta superficial (panel superior) y recargas de agua subterránea (panel inferior) para el escenario base, con pérdidas estocásticas y período de mantenimiento señalado.
+
+![Calendario de Oferta Hídrica](docs/oferta_hidrica_calendario.png)
+
 ---
 
 ## 4. Módulo 2 — Simulación de Cultivo (Eventos Discretos)
@@ -313,6 +317,10 @@ $$
 
 - $K_{cb}(t)$ varía linealmente a lo largo de las fases fenológicas `ini → des → med → fin` según las duraciones `L_ini, L_des, L_med, L_fin` de `data_cultivos.csv`.
 - $K_e(t)$ se rige por un balance de la capa superficial (energía disponible limitada por $K_{cb,max}$ y agua disponible en el estrato evaporativo $Ze$), con coeficiente de reducción $K_r$ cuando esa capa se ha secado.
+
+**Figura 2.** Trayectorias de $K_{cb}(t)$ (panel izquierdo) y $K_{c,max}(t)$ (panel derecho) para los ocho cultivos simulados, calculadas a partir de los parámetros fenológicos de `data_cultivos.csv` y la serie climática de 365 días. La progresion sigmoidal de $K_{cb}$ refleja las fases ini → des → med → fin; $K_{c,max}$ fluctua con el viento y la humedad relativa diaria.
+
+![Kcb y Kcmax diario por cultivo](docs/kcb_kcmax_cultivos.png)
 
 #### Extensión 1 — estrés hídrico radicular ($K_s$)
 
@@ -387,7 +395,7 @@ El parámetro `FRACCION_DRENAJE` en `parametros.py` es **calibrable con sensor v
 
 Los parámetros de suelo (`CC`, `PMP`, `Ze_evap`, `AET`, `AFE`) se definen en `parametros.py`. Las condiciones iniciales de déficit (`De0`, `Dr0`) se fijan en cero (suelo a capacidad de campo al inicio de la siembra).
 
-### 4.3 Asignación de recursos hídricos (despacho por prioridad)
+### 4.3 Política de Riego
 
 En cada **evento de riego** el simulador satisface la demanda neta del cultivo ($D_N = \max(0,\; ET_r - PP)$, donde $ET_r$ es la evapotranspiración real bajo estrés) asignando los **recursos hídricos disponibles** en el siguiente orden de prioridad:
 
