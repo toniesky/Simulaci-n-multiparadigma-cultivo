@@ -1,31 +1,31 @@
 # Modelo de Soporte a la Toma de Decisiones en la Agricultura Basado en Simulación Multiparadigma
 
-> **Proyecto:** Capstone — Simulación Multiparadigma para la Gestión del Agua de Riego  
-> **Paradigmas:** Dinámica de Sistemas (Oferta Hídrica) · Simulación de Eventos Discretos (Demanda de Cultivo)  
+> **Proyecto:** Capstone — Simulación Multiparadigma para la Gestión del Agua de Riego 
+> **Paradigmas:** Dinámica de Sistemas (Oferta Hídrica) · Simulación de Eventos Discretos (Demanda de Cultivo) 
 
 ---
 
 ## Tabla de Contenidos
 
 1. [Objetivo del Sistema](#1-objetivo-del-sistema)
-   - 1.1 Necesidad de la modelación: el trade-off agua–calidad–presupuesto
+ - 1.1 Necesidad de la modelación: el trade-off agua–calidad–presupuesto
 2. [Arquitectura General](#2-arquitectura-general)
 3. [Módulo 1 — Oferta Hídrica (Dinámica de Sistemas)](#3-módulo-1--oferta-hídrica-dinámica-de-sistemas)
-   - 3.1 Parámetros configurables
-   - 3.2 Generación de escenarios de desmarque
-   - 3.3 Lógica de apertura del canal
-   - 3.4 Cálculo de pérdidas y oferta neta
-   - 3.5 Salida: CalendarioOferta.csv
+ - 3.1 Parámetros configurables
+ - 3.2 Generación de escenarios de desmarque
+ - 3.3 Lógica de apertura del canal
+ - 3.4 Cálculo de pérdidas y oferta neta
+ - 3.5 Salida: CalendarioOferta.csv
 4. [Módulo 2 — Simulación de Cultivo (Eventos Discretos)](#4-módulo-2--simulación-de-cultivo-eventos-discretos)
-   - 4.1 Balance hídrico FAO-56 doble coeficiente
-     - Formulación base (potencial): $ET_c = (K_{cb}+K_e)\cdot ET_0$
-     - Extensión 1 — estrés hídrico radicular ($K_s$)
-     - Extensión 2 — retención no lineal por textura ($f(H)=H^\alpha$)
-     - Extensión 3 — estado post-riego con fracción de drenaje ($f_{drain}$)
-   - 4.3 Política de Riego
-   - 4.4 Restricciones estacionales de siembra
-   - 4.5 Optimización combinatoria de portafolio
-   - 4.6 KPIs y reporte HTML
+ - 4.1 Balance hídrico FAO-56 doble coeficiente
+ - Formulación base (potencial): $ET_c = (K_{cb}+K_e)\cdot ET_0$
+ - Extensión 1 — estrés hídrico radicular ($K_s$)
+ - Extensión 2 — retención no lineal por textura ($f(H)=H^\alpha$)
+ - Extensión 3 — estado post-riego con fracción de drenaje ($f_{drain}$)
+ - 4.3 Política de Riego
+ - 4.4 Restricciones estacionales de siembra
+ - 4.5 Optimización combinatoria de portafolio
+ - 4.6 KPIs y reporte HTML
 5. [Flujo de Datos end-to-end](#5-flujo-de-datos-end-to-end)
 6. [Guía de Ejecución](#6-guía-de-ejecución)
 7. [Archivos de Entrada y Salida](#7-archivos-de-entrada-y-salida)
@@ -65,47 +65,47 @@ El sistema está compuesto por dos subsistemas de simulación desacoplados que i
 
 ```mermaid
 flowchart LR
-    classDef ext    fill:#f1f5f9,stroke:#64748b,color:#1e293b,stroke-dasharray:5 4
-    classDef param  fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
-    classDef engine fill:#dcfce7,stroke:#16a34a,color:#14532d
-    classDef csv    fill:#fef9c3,stroke:#ca8a04,color:#713f12
-    classDef out    fill:#fce7f3,stroke:#db2777,color:#831843
+ classDef ext fill:#f1f5f9,stroke:#64748b,color:#1e293b,stroke-dasharray:5 4
+ classDef param fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
+ classDef engine fill:#dcfce7,stroke:#16a34a,color:#14532d
+ classDef csv fill:#fef9c3,stroke:#ca8a04,color:#713f12
+ classDef out fill:#fce7f3,stroke:#db2777,color:#831843
 
-    %% Fuentes externas
-    EXT1(["🌧️ CEAZAMet\nClima histórico"]):::ext
-    EXT2(["❄️ CEAZA Nieve\nSWE cuenca"]):::ext
-    EXT3(["💧 DGA\nBoletines hídricos"]):::ext
+ %% Fuentes externas
+ EXT1(["CEAZAMet\nClima histórico"]):::ext
+ EXT2(["CEAZA Nieve\nSWE cuenca"]):::ext
+ EXT3(["DGA\nBoletines hídricos"]):::ext
 
-    %% Módulo 1
-    subgraph M1["① Oferta Hídrica — Dinámica de Sistemas"]
-        direction TB
-        P1["📄 initial_values.py\nParámetros del canal"]:::param
-        SD["⚙️ modelo_simulacion_oferta_hidrica.py\nE escenarios × T días\nPérdidas U(min,max)"]:::engine
-        P1 --> SD
-    end
+ %% Módulo 1
+ subgraph M1["① Oferta Hídrica — Dinámica de Sistemas"]
+ direction TB
+ P1["initial_values.py\nParámetros del canal"]:::param
+ SD["modelo_simulacion_oferta_hidrica.py\nE escenarios × T días\nPérdidas U(min,max)"]:::engine
+ P1 --> SD
+ end
 
-    %% Módulo 2
-    subgraph M2["② Simulación de Cultivo — Eventos Discretos"]
-        direction TB
-        P2["📄 parametros.py\nCultivos · Regantes · Clima"]:::param
-        DE["⚙️ simular_demanda.py\nBalance FAO-56 + despacho\nCombinaciones C(n+P-1,P)"]:::engine
-        P2 --> DE
-    end
+ %% Módulo 2
+ subgraph M2["② Simulación de Cultivo — Eventos Discretos"]
+ direction TB
+ P2["parametros.py\nCultivos · Regantes · Clima"]:::param
+ DE["simular_demanda.py\nBalance FAO-56 + despacho\nCombinaciones C(n+P-1,P)"]:::engine
+ P2 --> DE
+ end
 
-    %% Archivo intermedio
-    CSV[("📊 CalendarioOferta.csv\noferta diaria × escenario")]:::csv
+ %% Archivo intermedio
+ CSV[("CalendarioOferta.csv\noferta diaria × escenario")]:::csv
 
-    %% Salidas finales
-    O1["📈 SimulacionDemanda.csv"]:::out
-    O2["🗂️ ReporteEscenarios.html"]:::out
+ %% Salidas finales
+ O1["SimulacionDemanda.csv"]:::out
+ O2["ReporteEscenarios.html"]:::out
 
-    %% Flujos
-    EXT1 & EXT2 & EXT3 --> P2
-    EXT2 & EXT3          --> P1
-    SD  --> CSV
-    CSV --> DE
-    DE  --> O1
-    DE  --> O2
+ %% Flujos
+ EXT1 & EXT2 & EXT3 --> P2
+ EXT2 & EXT3 --> P1
+ SD --> CSV
+ CSV --> DE
+ DE --> O1
+ DE --> O2
 ```
 
 > **Principio de desacoplamiento:** ambos subsistemas son autónomos. La re-ejecución del Módulo 1 —ante una revisión del desmarque estimado— no requiere re-ejecutar el Módulo 2, y viceversa. El intercambio de estado entre subsistemas ocurre exclusivamente a través de `CalendarioOferta.csv`.
@@ -118,36 +118,36 @@ El subsistema de Oferta Hídrica modela la evolución temporal del volumen de ag
 
 ```mermaid
 flowchart TD
-    classDef param fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
-    classDef proc  fill:#dcfce7,stroke:#16a34a,color:#14532d
-    classDef out   fill:#fef9c3,stroke:#ca8a04,color:#713f12
-    classDef dec   fill:#fff7ed,stroke:#ea580c,color:#7c2d12
+ classDef param fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
+ classDef proc fill:#dcfce7,stroke:#16a34a,color:#14532d
+ classDef out fill:#fef9c3,stroke:#ca8a04,color:#713f12
+ classDef dec fill:#fff7ed,stroke:#ea580c,color:#7c2d12
 
-    D0["PORCENTAJE_DESMARQUE_FINAL  →  d₀\nSALTO_DESMARQUE  →  Δd\nNUM_ESCENARIOS  →  E\nDIA_INICIO  →  t₀\nHORIZONTE  →  T"]:::param
-    PL["PERDIDA_CONDUCCION ~ U(min,max)\nPERDIDA_FILTRACION ~ U(min,max)"]:::param
-    CA["CALENDARIO_PARADAS\nFRECUENCIA_TURNO\nDURACION_MANTENIMIENTO"]:::param
+ D0["PORCENTAJE_DESMARQUE_FINAL → d₀\nSALTO_DESMARQUE → Δd\nNUM_ESCENARIOS → E\nDIA_INICIO → t₀\nHORIZONTE → T"]:::param
+ PL["PERDIDA_CONDUCCION ~ U(min,max)\nPERDIDA_FILTRACION ~ U(min,max)"]:::param
+ CA["CALENDARIO_PARADAS\nFRECUENCIA_TURNO\nDURACION_MANTENIMIENTO"]:::param
 
-    D0 --> ESC["escenarios.py\nd₋₂, d₋₁, d₀, d₊₁, d₊₂\n(E escenarios fijos, valores = d₀ ± i·Δd)"]:::proc
+ D0 --> ESC["escenarios.py\nd₋₂, d₋₁, d₀, d₊₁, d₊₂\n(E escenarios fijos, valores = d₀ ± i·Δd)"]:::proc
 
-    ESC --> ESCLOOP["eᵢ = e₀"]:::proc
-    CA  --> ESCLOOP
-    PL  --> ESCLOOP
+ ESC --> ESCLOOP["eᵢ = e₀"]:::proc
+ CA --> ESCLOOP
+ PL --> ESCLOOP
 
-    ESCLOOP --> LOOP["tᵢ = t₀"]:::proc
+ ESCLOOP --> LOOP["tᵢ = t₀"]:::proc
 
-    LOOP --> T{"¿TurnoActivo\nAND\nNO EnParada?"}:::dec
-    T -->|"No"| Z["OfertaSuperficial = 0 m³"]:::out
-    T -->|"Sí"| Q["Pcond ~ U(·), Pfilt ~ U(·)\nQ_bruta = N_acc × V_acc × dₑ\nQ_neta = Q_bruta · (1 − Pcond − Pfilt)"]:::proc
-    Q  --> REC["Registrar fila (tᵢ, eᵢ, Q_neta, flags)"]:::proc
-    Z  --> REC
+ LOOP --> T{"¿TurnoActivo\nAND\nNO EnParada?"}:::dec
+ T -->|"No"| Z["OfertaSuperficial = 0 m³"]:::out
+ T -->|"Sí"| Q["Pcond ~ U(·), Pfilt ~ U(·)\nQ_bruta = N_acc × V_acc × dₑ\nQ_neta = Q_bruta · (1 − Pcond − Pfilt)"]:::proc
+ Q --> REC["Registrar fila (tᵢ, eᵢ, Q_neta, flags)"]:::proc
+ Z --> REC
 
-    REC --> NEXTD{"¿tᵢ < T?"}:::dec
-    NEXTD -->|"Sí: tᵢ = tᵢ + 1"| LOOP
-    NEXTD -->|"No: tᵢ = t₀"| NEXTE{"¿eᵢ < E?"}:::dec
-    NEXTE -->|"Sí: eᵢ = eᵢ + 1"| ESCLOOP
-    NEXTE -->|"No"| CO
+ REC --> NEXTD{"¿tᵢ < T?"}:::dec
+ NEXTD -->|"Sí: tᵢ = tᵢ + 1"| LOOP
+ NEXTD -->|"No: tᵢ = t₀"| NEXTE{"¿eᵢ < E?"}:::dec
+ NEXTE -->|"Sí: eᵢ = eᵢ + 1"| ESCLOOP
+ NEXTE -->|"No"| CO
 
-    CO[("CalendarioOferta.csv\nT días × E escenarios\nOfertaSuperficial, Pérdidas, Flags")]:::out
+ CO[("CalendarioOferta.csv\nT días × E escenarios\nOfertaSuperficial, Pérdidas, Flags")]:::out
 ```
 
 ### 3.1 Parámetros configurables
@@ -213,7 +213,7 @@ La lógica está implementada en `modulos/escenarios.py → generar_escenarios(i
 Para cada paso temporal $t$ y para cada escenario $e_i$, el **flujo de entrada** al predio es positivo únicamente cuando se satisfacen simultáneamente dos condiciones booleanas:
 
 ```
-AperturaCanal = TurnoActivo  AND  NOT EnParada
+AperturaCanal = TurnoActivo AND NOT EnParada
 ```
 
 - **TurnoActivo**: el paso temporal $t$ corresponde a un día de turno del regante (múltiplo de `FRECUENCIA_TURNO`).
@@ -274,44 +274,44 @@ El subsistema de Demanda de Cultivo determina la combinación óptima de cultivo
 
 ```mermaid
 flowchart TD
-    classDef param fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
-    classDef proc  fill:#dcfce7,stroke:#16a34a,color:#14532d
-    classDef out   fill:#fce7f3,stroke:#db2777,color:#831843
-    classDef data  fill:#fef9c3,stroke:#ca8a04,color:#713f12
-    classDef dec   fill:#fff7ed,stroke:#ea580c,color:#7c2d12
+ classDef param fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
+ classDef proc fill:#dcfce7,stroke:#16a34a,color:#14532d
+ classDef out fill:#fce7f3,stroke:#db2777,color:#831843
+ classDef data fill:#fef9c3,stroke:#ca8a04,color:#713f12
+ classDef dec fill:#fff7ed,stroke:#ea580c,color:#7c2d12
 
-    CO[("CalendarioOferta.csv\nE escenarios")]:::data
-    CLI["datosclima.csv\nETo(t), PP(t)"]:::param
-    DC["data_cultivos.csv\nKcb, fases fenológicas"]:::param
-    CAL["calendario_siembra.csv\nfiltro de cultivos por mes"]:::param
-    REG["regantes.csv\nha, capacidad estanque"]:::param
-    PROD["productividad_cultivos.csv\nprecios CLP/ha, costos, rendimientos"]:::param
-    PAR["parametros.py\nα, f_drain, Dr₀, presupuesto…"]:::param
+ CO[("CalendarioOferta.csv\nE escenarios")]:::data
+ CLI["datosclima.csv\nETo(t), PP(t)"]:::param
+ DC["data_cultivos.csv\nKcb, fases fenológicas"]:::param
+ CAL["calendario_siembra.csv\nfiltro de cultivos por mes"]:::param
+ REG["regantes.csv\nha, capacidad estanque"]:::param
+ PROD["productividad_cultivos.csv\nprecios CLP/ha, costos, rendimientos"]:::param
+ PAR["parametros.py\nα, f_drain, Dr₀, presupuesto…"]:::param
 
-    subgraph SIMPY["SimPy — proceso por parcela, día a día"]
-        FAO["Balance FAO-56\nET_real = Ks·Kcb·ET₀·Hᵅ + Es\nActualizar Dr y De"]:::proc
-        DISP["Despacho de agua\n① Canal  ② Estanque  ③ Subterráneo"]:::proc
-        FAO --> DISP
-    end
+ subgraph SIMPY["SimPy — proceso por parcela, día a día"]
+ FAO["Balance FAO-56\nET_real = Ks·Kcb·ET₀·Hᵅ + Es\nActualizar Dr y De"]:::proc
+ DISP["Despacho de agua\n① Canal ② Estanque ③ Subterráneo"]:::proc
+ FAO --> DISP
+ end
 
-    CLI --> FAO
-    DC  --> FAO
-    PAR --> FAO
-    CO  --> DISP
-    REG --> DISP
+ CLI --> FAO
+ DC --> FAO
+ PAR --> FAO
+ CO --> DISP
+ REG --> DISP
 
-    subgraph OPT["Optimización combinatoria"]
-        COMB["Enumerar C(n+P−1, P) combinaciones\nde cultivos filtrados por mes"]:::proc
-        BEST["Combinación ganadora\nmax Σ Margen_real  s.a. Σ Costo ≤ Presupuesto"]:::proc
-        COMB --> BEST
-    end
+ subgraph OPT["Optimización combinatoria"]
+ COMB["Enumerar C(n+P−1, P) combinaciones\nde cultivos filtrados por mes"]:::proc
+ BEST["Combinación ganadora\nmax Σ Margen_real s.a. Σ Costo ≤ Presupuesto"]:::proc
+ COMB --> BEST
+ end
 
-    CAL  --> COMB
-    PROD --> COMB
-    SIMPY --> OPT
+ CAL --> COMB
+ PROD --> COMB
+ SIMPY --> OPT
 
-    BEST --> HTML["ReporteParticiones.html\nKPIs hídricos + económicos por escenario"]:::out
-    BEST --> CSV["SimulacionDemanda.csv\nReporteEscenarios.csv"]:::out
+ BEST --> HTML["ReporteParticiones.html\nKPIs hídricos + económicos por escenario"]:::out
+ BEST --> CSV["SimulacionDemanda.csv\nReporteEscenarios.csv"]:::out
 ```
 
 ### 4.1 Balance hídrico FAO-56 doble coeficiente
@@ -416,15 +416,15 @@ En cada **evento de riego** el simulador satisface la demanda neta del cultivo (
 
 ```
 1. CANAL (eventos de turno con flujo activo):
-   a. Riego directo: min(OfertaCanal, DemandaNeta)  → aplicado en el evento actual
-   b. Almacenamiento: excedente del canal → estanque predial (hasta capacidad máxima)
-   c. Pérdida: excedente que supera capacidad del estanque
+ a. Riego directo: min(OfertaCanal, DemandaNeta) → aplicado en el evento actual
+ b. Almacenamiento: excedente del canal → estanque predial (hasta capacidad máxima)
+ c. Pérdida: excedente que supera capacidad del estanque
 
 2. ESTANQUE (cualquier evento, si nivel > 0):
-   - Extracción para completar la demanda neta no cubierta por el canal
+ - Extracción para completar la demanda neta no cubierta por el canal
 
 3. SUBTERRÁNEO (si han transcurrido ≥ DIAS_SIN_RIEGO_PARA_SUBTERRANEA sin riego):
-   - Extracción del stock subterráneo para cubrir el déficit hídrico residual
+ - Extracción del stock subterráneo para cubrir el déficit hídrico residual
 ```
 
 El **stock del estanque** se actualiza en cada evento de acuerdo con la ecuación de balance:
@@ -593,48 +593,48 @@ Fuente: CEAZAMet (estaciones meteorológicas del valle de Elqui).
 
 ```mermaid
 flowchart TD
-    classDef src  fill:#f0fdf4,stroke:#15803d,color:#14532d
-    classDef cfg  fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
-    classDef proc fill:#dcfce7,stroke:#16a34a,color:#14532d
-    classDef data fill:#fef9c3,stroke:#ca8a04,color:#713f12
-    classDef out  fill:#fce7f3,stroke:#db2777,color:#831843
+ classDef src fill:#f0fdf4,stroke:#15803d,color:#14532d
+ classDef cfg fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
+ classDef proc fill:#dcfce7,stroke:#16a34a,color:#14532d
+ classDef data fill:#fef9c3,stroke:#ca8a04,color:#713f12
+ classDef out fill:#fce7f3,stroke:#db2777,color:#831843
 
-    %% ── Fuentes de datos externas ──────────────────────────
-    CEAZAMET["CEAZAMet\nestaciones meteorológicas\nhist. valle Elqui"]:::src
-    NIEVE["CEAZA Nieve\nnivel de nieve\ncuenca Elqui"]:::src
-    DGA["DGA Boletines\nnivel Puclaro\ncaudal río Elqui"]:::src
+ %% Fuentes de datos externas 
+ CEAZAMET["CEAZAMet\nestaciones meteorológicas\nhist. valle Elqui"]:::src
+ NIEVE["CEAZA Nieve\nnivel de nieve\ncuenca Elqui"]:::src
+ DGA["DGA Boletines\nnivel Puclaro\ncaudal río Elqui"]:::src
 
-    %% ── Preparación de entradas ─────────────────────────────
-    CEAZAMET -->|"serie histórica\nETo + clima"| CLIMA["datosclima.csv\ndatos_clima_365dias.csv"]:::data
-    NIEVE    -->|"predictores\nhidrológicos"| EST["Estimación desmarque\nPORCENTAJE_DESMARQUE_FINAL"]:::cfg
-    DGA      -->|"predictores\nhidrológicos"| EST
+ %% Preparación de entradas 
+ CEAZAMET -->|"serie histórica\nETo + clima"| CLIMA["datosclima.csv\ndatos_clima_365dias.csv"]:::data
+ NIEVE -->|"predictores\nhidrológicos"| EST["Estimación desmarque\nPORCENTAJE_DESMARQUE_FINAL"]:::cfg
+ DGA -->|"predictores\nhidrológicos"| EST
 
-    %% ── Módulo 1: Oferta Hídrica ────────────────────────────
-    EST --> IV["initial_values.py\n± SALTO_DESMARQUE"]:::cfg
+ %% Módulo 1: Oferta Hídrica 
+ EST --> IV["initial_values.py\n± SALTO_DESMARQUE"]:::cfg
 
-    subgraph MOH["Módulo 1 — Oferta Hídrica · pysd"]
-        MSA["modelo_simulacion_oferta_hidrica.py\nE escenarios de desmarque\npérdidas aleatorias · paradas"]:::proc
-    end
+ subgraph MOH["Módulo 1 — Oferta Hídrica · pysd"]
+ MSA["modelo_simulacion_oferta_hidrica.py\nE escenarios de desmarque\npérdidas aleatorias · paradas"]:::proc
+ end
 
-    IV --> MSA
-    MSA --> CO[("CalendarioOferta.csv\nDía × Escenario")]:::data
+ IV --> MSA
+ MSA --> CO[("CalendarioOferta.csv\nDía × Escenario")]:::data
 
-    %% ── Módulo 2: Simulación de Cultivo ─────────────────────
-    PAR["parametros.py"]:::cfg
-    INP["data_cultivos.csv\nregantes.csv\ncalendario_siembra.csv\nproductividad_cultivos.csv"]:::cfg
+ %% Módulo 2: Simulación de Cultivo 
+ PAR["parametros.py"]:::cfg
+ INP["data_cultivos.csv\nregantes.csv\ncalendario_siembra.csv\nproductividad_cultivos.csv"]:::cfg
 
-    subgraph MSC["Módulo 2 — Simulación de Cultivo · SimPy"]
-        SIM["simular_demanda.py\nFAO-56 dual coef. + f(H)=Hᵅ\ndespacho canal / estanque / sub\nC(n+P−1, P) combinaciones"]:::proc
-    end
+ subgraph MSC["Módulo 2 — Simulación de Cultivo · SimPy"]
+ SIM["simular_demanda.py\nFAO-56 dual coef. + f(H)=Hᵅ\ndespacho canal / estanque / sub\nC(n+P−1, P) combinaciones"]:::proc
+ end
 
-    CO    --> SIM
-    CLIMA --> SIM
-    PAR   --> SIM
-    INP   --> SIM
+ CO --> SIM
+ CLIMA --> SIM
+ PAR --> SIM
+ INP --> SIM
 
-    SIM --> HTML["ReporteParticiones.html"]:::out
-    SIM --> R1["ReporteEscenarios.csv"]:::out
-    SIM --> R2["SimulacionDemanda.csv"]:::out
+ SIM --> HTML["ReporteParticiones.html"]:::out
+ SIM --> R1["ReporteEscenarios.csv"]:::out
+ SIM --> R2["SimulacionDemanda.csv"]:::out
 ```
 
 ---
