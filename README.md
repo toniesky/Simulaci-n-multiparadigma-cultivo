@@ -64,6 +64,7 @@ Una decisión de portafolio que ignore la dinámica hídrica sobreestimará los 
 El sistema está compuesto por dos subsistemas de simulación desacoplados que intercambian estado a través de un archivo CSV intermedio. La selección del paradigma de simulación para cada subsistema responde a la estructura causal y temporal del fenómeno que representa: la Dinámica de Sistemas captura la evolución continua de stocks hídricos con estructura de retroalimentación, mientras que la Simulación de Eventos Discretos representa con fidelidad los procesos agronómicos gobernados por eventos discretos y transiciones de estado.
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'background': '#ffffff', 'primaryBackground': '#ffffff'}}}%%
 flowchart LR
     classDef ext    fill:#f1f5f9,stroke:#64748b,color:#1e293b,stroke-dasharray:5 4
     classDef param  fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
@@ -117,6 +118,7 @@ flowchart LR
 El subsistema de Oferta Hídrica modela la evolución temporal del volumen de agua disponible en el predio a lo largo de un horizonte de T días. La **variable de estado** central es la oferta superficial neta diaria, cuya trayectoria resulta de la interacción entre las tasas de entrada (desmarque) y las tasas de salida estocásticas (pérdidas por conducción y filtración). La incertidumbre sobre el desmarque final se incorpora mediante E escenarios paralelos que exploran el espacio de realizaciones posibles.
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'background': '#ffffff', 'primaryBackground': '#ffffff'}}}%%
 flowchart TD
     classDef param fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
     classDef proc  fill:#dcfce7,stroke:#16a34a,color:#14532d
@@ -273,6 +275,7 @@ El archivo resultante tiene una fila por día × escenario con las columnas:
 El subsistema de Demanda de Cultivo determina la combinación óptima de cultivos y la estrategia de **asignación de recursos hídricos** que maximiza el margen económico, condicionada a la oferta superficial provista por el Módulo 1 vía `CalendarioOferta.csv`. Cada parcela se representa como una **entidad** SimPy que transita entre **estados fenológicos** (siembra → establecimiento → desarrollo → madurez → cosecha) mediante **eventos discretos** programados en el **calendario de eventos** del motor de simulación. La ejecución orientada a eventos (**event-driven execution**) avanza el reloj de simulación de evento en evento, sin procesar pasos temporales inactivos.
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'background': '#ffffff', 'primaryBackground': '#ffffff'}}}%%
 flowchart TD
     classDef param fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
     classDef proc  fill:#dcfce7,stroke:#16a34a,color:#14532d
@@ -592,6 +595,7 @@ Fuente: CEAZAMet (estaciones meteorológicas del valle de Elqui).
 ## 5. Flujo de Datos end-to-end
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'background': '#ffffff', 'primaryBackground': '#ffffff'}}}%%
 flowchart TD
     classDef src  fill:#f0fdf4,stroke:#15803d,color:#14532d
     classDef cfg  fill:#dbeafe,stroke:#2563eb,color:#1e3a5f
