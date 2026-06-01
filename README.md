@@ -87,18 +87,18 @@ flowchart TD
     CA  --> ESCLOOP
     PL  --> ESCLOOP
 
-    ESCLOOP --> LOOP["t = 1"]:::proc
+    ESCLOOP --> LOOP["tᵢ = 1"]:::proc
 
     LOOP --> T{"¿TurnoActivo\nAND\nNO EnParada?"}:::dec
     T -->|"No"| Z["OfertaSuperficial = 0 m³"]:::out
     T -->|"Sí"| Q["Pcond ~ U(·), Pfilt ~ U(·)\nQ_bruta = N_acc × V_acc × dₑ\nQ_neta = Q_bruta · (1 − Pcond − Pfilt)"]:::proc
-    Q  --> REC["Registrar fila (t, e, Q_neta, flags)"]:::proc
+    Q  --> REC["Registrar fila (tᵢ, eᵢ, Q_neta, flags)"]:::proc
     Z  --> REC
 
-    REC --> NEXTD{"t < 365?"}:::dec
-    NEXTD -->|"Sí → t = t+1"| LOOP
-    NEXTD -->|"No"| NEXTE{"e < +2?"}:::dec
-    NEXTE -->|"Sí → e = e+1"| ESCLOOP
+    REC --> NEXTD{"¿tᵢ < 365?"}:::dec
+    NEXTD -->|"Sí: tᵢ = tᵢ + 1"| LOOP
+    NEXTD -->|"No: tᵢ = 0"| NEXTE{"¿eᵢ < +2?"}:::dec
+    NEXTE -->|"Sí: eᵢ = eᵢ + 1"| ESCLOOP
     NEXTE -->|"No"| CO
 
     CO[("CalendarioOferta.csv\n365 días × 5 escenarios\nOfertaSuperficial, Pérdidas, Flags")]:::out
