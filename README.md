@@ -8,6 +8,7 @@
 ## Tabla de Contenidos
 
 1. [Objetivo del Sistema](#1-objetivo-del-sistema)
+   - 1.1 Necesidad de la modelación: el trade-off agua–calidad–presupuesto
 2. [Arquitectura General](#2-arquitectura-general)
 3. [Módulo 1 — Oferta Hídrica (Dinámica de Sistemas)](#3-módulo-1--oferta-hídrica-dinámica-de-sistemas)
    - 3.1 Parámetros configurables
@@ -41,6 +42,20 @@ El presente modelo constituye un **sistema de soporte a la toma de decisiones** 
 2. **¿Qué cultivos plantar y cuándo regar?** — El subsistema de Demanda de Cultivo emplea **Simulación de Eventos Discretos** para representar el ciclo agronómico de cada parcela como una secuencia de **transiciones de estado** (siembra → desarrollo → madurez → cosecha) disparadas por **eventos** programados en el calendario de eventos del motor SimPy. La **asignación de recursos hídricos** —canal, estanque predial y fuente subterránea— se ejecuta en cada evento de riego mediante una lógica de despacho por prioridad.
 
 La elección de un enfoque **multiparadigma** responde a la naturaleza fenomenológicamente distinta de ambos subsistemas: la oferta hídrica exhibe comportamiento **continuo y acumulativo** con retroalimentación (propio de la Dinámica de Sistemas), mientras que la demanda agrícola está gobernada por **eventos discretos** que marcan transiciones fenológicas y decisiones de riego. Ambos subsistemas están **desacoplados**: se comunican exclusivamente mediante el archivo intermedio `CalendarioOferta.csv`, lo que permite re-ejecutar cada módulo de forma independiente.
+
+### 1.1 Necesidad de la modelación: el trade-off agua–calidad–presupuesto
+
+La complejidad del problema de planificación agrícola bajo restricción hídrica radica en la existencia de **tres tensiones simultáneas** que no pueden resolverse de forma independiente:
+
+| Dimensión | Variable | Tensión |
+|---|---|---|
+| **Hídrica** | Volumen disponible en canal, estanque y acuífero | La oferta es incierta (desmarque) y discontinua (turnos, paradas) |
+| **Agronómica** | Estrés hídrico $K_s(t)$, humedad radicular $D_r(t)$ | El déficit de riego reduce el rendimiento y la calidad del producto |
+| **Económica** | Precio de venta (estacional), costo de producción, presupuesto total | El precio varía según el mes de cosecha; el presupuesto limita qué cultivos son viables |
+
+El **trade-off central** surge de la interacción entre estas tres dimensiones: regar más reduce el estrés ($K_s \to 1$) y protege el rendimiento, pero consume el stock de agua disponible para el resto de la temporada y puede comprometer cultivos posteriores o en parcelas vecinas. Por otro lado, plantar cultivos de mayor valor económico suele requerir mayor demanda hídrica y mayor inversión inicial, lo que eleva la exposición al riesgo ante una temporada de desmarque bajo.
+
+Una decisión de portafolio que ignore la dinámica hídrica sobreestimará los márgenes esperados; una que ignore la estacionalidad de precios suboptimizará el momento de cosecha; y una que ignore la restricción de presupuesto generará planes no ejecutables. La modelación multiparadigma permite **cuantificar explícitamente este trade-off** bajo E escenarios de oferta hídrica, entregando al regante una frontera de decisiones informada antes del inicio de la temporada.
 
 ---
 
