@@ -40,79 +40,89 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
     rnom         = str(regante.get('nombre', ''))
 
     css = """
-    body{font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9;margin:0;padding:0;color:#222}
-    .header{background:#1a3d6e;color:#fff;padding:22px 36px 14px;margin-bottom:24px}
-    .header h1{margin:0 0 4px;font-size:1.5rem}
-    .header p{margin:2px 0;font-size:.9rem;opacity:.85}
-    .container{max-width:1180px;margin:0 auto;padding:0 18px 48px}
-    h2{background:#2563a8;color:#fff;padding:9px 18px;border-radius:5px;font-size:1.1rem;margin:30px 0 14px}
-    h3{color:#1a3d6e;font-size:.93rem;margin:20px 0 6px;border-bottom:2px solid #cde;padding-bottom:3px}
-    .chain-label{display:inline-block;background:#e8f0fb;color:#1a3d6e;border:1px solid #9bb8e8;
-                 border-radius:12px;padding:3px 10px;font-size:.78rem;font-weight:600;margin:0 4px}
-    .chain-arrow{color:#9bb8e8;font-size:1.1rem;margin:0 2px}
-    .nota{background:#fff8e1;border-left:4px solid #f9a825;padding:10px 14px;font-size:.82rem;
-          margin:8px 0 18px;border-radius:0 5px 5px 0;line-height:1.55}
-    .combinacion{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 16px}
-    .badge{background:#1a3d6e;color:#fff;padding:6px 16px;border-radius:22px;font-size:.87rem;font-weight:600}
-    .badge span{font-size:.76rem;opacity:.75;margin-right:5px}
-    .badge small{display:block;font-size:.72rem;opacity:.72;font-weight:400}
-    .kpi-row{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 18px}
-    .kpi{background:#fff;border:1px solid #dde;border-radius:7px;padding:8px 16px;font-size:.82rem;min-width:120px}
-    .kpi b{display:block;font-size:1.15rem;color:#1a3d6e}
-    .water-state{background:#e8f0fb;border:1px solid #9bb8e8;border-radius:7px;
-                 padding:9px 16px;font-size:.82rem;margin:6px 0 18px;display:flex;gap:24px;flex-wrap:wrap}
-    .water-state div{min-width:160px}
-    .water-state b{display:block;font-size:.85rem;color:#1a3d6e;margin-bottom:2px}
-    .ppto-state{background:#fff3e0;border:1px solid #ffb74d;border-radius:7px;
-                padding:9px 16px;font-size:.82rem;margin:6px 0 18px}
-    .ppto-state b{color:#e65100}
-    .ppto-bar-wrap{display:inline-block;background:#eee;border-radius:4px;
-                   height:12px;width:200px;vertical-align:middle;margin:0 6px}
-    .ppto-bar-used{height:12px;border-radius:4px 0 0 4px;background:#ef6c00;display:inline-block;vertical-align:top}
-    .ppto-row{display:flex;gap:20px;flex-wrap:wrap;margin-top:6px}
-    .ppto-step{background:#fff;border:1px solid #ffe0b2;border-radius:5px;padding:6px 12px;font-size:.8rem;min-width:160px}
-    .ppto-step b{display:block;color:#bf360c;font-size:.85rem}
-    .ppto-step .excede{color:#c62828;font-size:.77rem}
-    table{border-collapse:collapse;width:100%;font-size:.81rem;margin-bottom:18px}
-    th{background:#e8eef6;color:#1a3d6e;padding:6px 9px;text-align:right;
-       border:1px solid #cde;white-space:nowrap;font-size:.79rem}
+    *,*::before,*::after{box-sizing:border-box}
+    body{font-family:'Segoe UI',system-ui,Arial,sans-serif;font-size:14px;background:#eef1f6;color:#1c1c1c;margin:0;padding:0;line-height:1.55}
+    /* ---- Header ---- */
+    .header{background:linear-gradient(135deg,#0d2b52 0%,#1a3d6e 55%,#2563a8 100%);color:#fff;padding:28px 48px 24px}
+    .header h1{margin:0 0 8px;font-size:1.55rem;font-weight:700;letter-spacing:.3px}
+    .header-meta{display:flex;gap:28px;flex-wrap:wrap;margin-top:4px;font-size:.85rem;opacity:.82}
+    .header-meta b{color:#fff;font-weight:600}
+    /* ---- Layout ---- */
+    .container{max-width:1220px;margin:0 auto;padding:28px 32px 64px}
+    .section-card{background:#fff;border:1px solid #d8dde8;border-radius:10px;padding:26px 30px;margin-bottom:30px;box-shadow:0 2px 10px rgba(0,0,0,.07)}
+    /* ---- Títulos ---- */
+    h2{display:flex;align-items:center;color:#1a3d6e;font-size:1.08rem;font-weight:700;margin:0 0 20px;padding:13px 20px;border-left:5px solid #2563a8;background:#f0f4fb;border-radius:0 7px 7px 0;border:1px solid #d0daf0;border-left:5px solid #2563a8}
+    h3{color:#1a3d6e;font-size:.79rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin:28px 0 12px;padding-bottom:6px;border-bottom:2px solid #c8d4e8}
+    /* ---- Nota informativa ---- */
+    .nota{background:#fffbea;border-left:4px solid #f59e0b;padding:11px 16px;font-size:.81rem;margin:4px 0 24px;border-radius:0 7px 7px 0;line-height:1.6;color:#4a3800}
+    /* ---- Combinación seleccionada ---- */
+    .combinacion{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 24px;padding:16px 20px;background:#f4f7fd;border:1px solid #c8d4e8;border-radius:8px}
+    .badge{background:#1a3d6e;color:#fff;padding:7px 18px;border-radius:24px;font-size:.87rem;font-weight:700;letter-spacing:.2px;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+    .badge span{font-size:.72rem;opacity:.72;margin-right:5px}
+    .badge small{display:block;font-size:.70rem;opacity:.70;font-weight:400}
+    /* ---- KPI rows ---- */
+    .kpi-row{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 8px}
+    .kpi{background:#fff;border:1px solid #dce3ee;border-radius:8px;padding:10px 16px;font-size:.79rem;min-width:118px;color:#555;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+    .kpi b{display:block;font-size:1.05rem;color:#1a3d6e;font-weight:700;margin-bottom:1px}
+    /* KPIs financieros destacados */
+    .kpi-hero{border-radius:9px;padding:13px 20px;min-width:148px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+    .kpi-hero b{font-size:1.3rem;font-weight:800;color:#fff;margin-bottom:2px;display:block}
+    .kpi-hero.margen {background:linear-gradient(135deg,#0f3460,#1a3d6e);color:#c8d8f0}
+    .kpi-hero.ingreso{background:linear-gradient(135deg,#14532d,#166534);color:#bbf7d0}
+    .kpi-hero.costo  {background:linear-gradient(135deg,#7c2d12,#9a3412);color:#fecaca}
+    .kpi-hero.prod   {background:linear-gradient(135deg,#1e3a5f,#2563a8);color:#bfdbfe}
+    /* Desglose canal */
+    .kpi-canal{border-left:3px solid #2563a8}
+    .canal-breakdown{margin-top:6px;display:flex;flex-direction:column;gap:2px}
+    .canal-breakdown span{font-size:.74rem;color:#555;padding-left:2px}
+    .canal-breakdown span::before{content:"↳ ";color:#2563a8}
+    /* ---- Estado del agua ---- */
+    .water-state{background:#e8f0fb;border:1px solid #9bb8e8;border-left:4px solid #2563a8;border-radius:8px;padding:13px 18px;font-size:.82rem;margin:6px 0 24px;display:flex;gap:32px;flex-wrap:wrap;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+    .water-state div{min-width:180px}
+    .water-state b{display:block;font-size:.85rem;color:#1a3d6e;margin-bottom:3px;font-weight:700}
+    /* ---- Presupuesto ---- */
+    .ppto-state{background:#fffbf0;border:1px solid #fbbf24;border-left:4px solid #f59e0b;border-radius:8px;padding:12px 18px;font-size:.82rem;margin:6px 0 24px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+    .ppto-state b{color:#c2410c;font-weight:700}
+    .ppto-bar-wrap{display:inline-block;background:#e5e7eb;border-radius:4px;height:10px;width:180px;vertical-align:middle;margin:0 8px}
+    .ppto-bar-used{height:10px;border-radius:4px 0 0 4px;background:#f97316;display:inline-block;vertical-align:top}
+    .ppto-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}
+    .ppto-step{background:#fff;border:1px solid #fde68a;border-radius:6px;padding:8px 14px;font-size:.79rem;min-width:160px}
+    .ppto-step b{display:block;color:#c2410c;font-size:.84rem;margin-bottom:2px}
+    .ppto-step .excede{color:#b91c1c;font-size:.76rem}
+    /* ---- Tablas ---- */
+    table{border-collapse:collapse;width:100%;font-size:.8rem;margin-bottom:22px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 5px rgba(0,0,0,.07)}
+    th{background:#e8eef6;color:#1a3d6e;padding:8px 10px;text-align:right;border-bottom:2px solid #b8c9e0;white-space:nowrap;font-size:.77rem;font-weight:700}
     th:first-child,th:nth-child(2){text-align:left}
-    th.sec-agua{background:#ddeeff;color:#0d47a1}
-    th.sec-hum{background:#e8f5e9;color:#1b5e20}
-    th.sec-cal{background:#fff3e0;color:#e65100}
-    th.sec-rent{background:#fce4ec;color:#880e4f}
-    td{padding:5px 9px;border:1px solid #dde;text-align:right}
-    td:first-child,td:nth-child(2){text-align:left;font-weight:500}
-    tr.ganador td{background:#e6f4ea;font-weight:700}
-    tr:nth-child(even):not(.ganador){background:#fafbfd}
-    .bar-wrap{width:90px;display:inline-block;vertical-align:middle;background:#eee;
-              border-radius:3px;height:10px;margin-left:4px}
-    .bar{height:10px;border-radius:3px;display:inline-block;vertical-align:top}
-    .bar-green{background:#43a047}
-    .bar-orange{background:#fb8c00}
-    .bar-red{background:#e53935}
-    .paso-box{background:#fff;border:1px solid #dde;border-radius:7px;padding:12px 16px;margin-bottom:12px}
-    .paso-title{font-weight:700;color:#1a3d6e;margin-bottom:3px;font-size:.9rem}
-    .paso-sub{font-size:.79rem;color:#555;margin-bottom:8px}
-    .gantt-wrap{background:#f8fafd;border:1px solid #dde;border-radius:7px;
-                padding:12px 16px;margin:6px 0 18px;overflow-x:auto}
+    th.sec-agua{background:#dbeafe;color:#1e40af}
+    th.sec-hum{background:#dcfce7;color:#14532d}
+    th.sec-cal{background:#ffedd5;color:#7c2d12}
+    th.sec-rent{background:#fce7f3;color:#831843}
+    td{padding:7px 10px;border-bottom:1px solid #eef0f4;text-align:right;vertical-align:middle}
+    td:first-child,td:nth-child(2){text-align:left;font-weight:600;color:#333}
+    tr:last-child td{border-bottom:none}
+    tr:hover:not(.ganador) td{background:#f4f7ff}
+    tr.ganador td{background:#dcfce7;font-weight:700}
+    tr:nth-child(even):not(.ganador):not(:hover){background:#fafbfd}
+    .excede{color:#b91c1c;font-size:.76rem}
+    /* ---- Barras ---- */
+    .bar-wrap{width:80px;display:inline-block;vertical-align:middle;background:#e5e7eb;border-radius:3px;height:8px;margin-left:6px}
+    .bar{height:8px;border-radius:3px;display:inline-block;vertical-align:top}
+    .bar-green{background:#22c55e}
+    .bar-orange{background:#f97316}
+    .bar-red{background:#ef4444}
+    /* ---- Gantt ---- */
+    .gantt-wrap{background:#fff;border:1px solid #d8dde8;border-radius:8px;padding:14px 18px;margin:6px 0 24px;overflow-x:auto;box-shadow:0 1px 5px rgba(0,0,0,.06)}
     .gantt-axis{position:relative;height:20px;margin-left:110px;margin-bottom:2px}
-    .gantt-tick{position:absolute;font-size:.70rem;color:#888;white-space:nowrap;
-                border-left:1px solid #ccd;padding-left:3px;top:0;height:100%}
-    .gantt-row{display:flex;align-items:center;margin-bottom:4px;min-height:34px}
-    .gantt-lbl{width:110px;min-width:110px;font-size:.78rem;font-weight:700;
-               color:#1a3d6e;line-height:1.4;padding-right:6px}
+    .gantt-tick{position:absolute;font-size:.68rem;color:#888;white-space:nowrap;border-left:1px solid #ccd;padding-left:3px;top:0;height:100%}
+    .gantt-row{display:flex;align-items:center;margin-bottom:5px;min-height:34px}
+    .gantt-lbl{width:110px;min-width:110px;font-size:.78rem;font-weight:700;color:#1a3d6e;line-height:1.4;padding-right:6px}
     .gantt-track{flex:1;display:flex;align-items:center;gap:8px}
-    .gantt-bar{flex:1;display:flex;height:26px;border-radius:5px;overflow:hidden;
-               box-shadow:0 1px 3px rgba(0,0,0,.12)}
-    .gseg{display:flex;align-items:center;justify-content:center;overflow:hidden;
-          white-space:nowrap;font-size:.65rem;color:#fff;font-weight:700;min-width:0}
+    .gantt-bar{flex:1;display:flex;height:26px;border-radius:5px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.14)}
+    .gseg{display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;font-size:.65rem;color:#fff;font-weight:700;min-width:0}
     .gseg span{overflow:hidden;text-overflow:ellipsis;padding:0 3px}
     .gantt-cosecha{font-size:.74rem;color:#555;white-space:nowrap}
-    .gantt-legend{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 4px;
-                  font-size:.74rem;color:#555}
-    .gantt-legend span{display:inline-block;width:12px;height:12px;
-                       border-radius:2px;margin-right:4px;vertical-align:middle}
+    .gantt-legend{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 4px;font-size:.74rem;color:#555}
+    .gantt-legend span{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:4px;vertical-align:middle}
     """
 
     def _clp(v):
@@ -178,7 +188,13 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
 
         kpis_html = f"""
         <div class="kpi-row">
-          <div class="kpi"><b>{ha_p*10_000:,.0f} m²</b>Por partición</div>
+          <div class="kpi kpi-hero margen"><b>{_clp(margen_total)}</b>Margen total</div>
+          <div class="kpi kpi-hero ingreso"><b>{_clp(ingreso_total)}</b>Ingreso real total</div>
+          <div class="kpi kpi-hero costo"><b>{_clp(costo_total)}</b>Costo total</div>
+          <div class="kpi kpi-hero prod"><b>{prod_total:,.1f} kg</b>Producción total</div>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi"><b>{ha_p*10_000:,.0f} m²</b>Superficie por partición</div>
           <div class="kpi kpi-canal">
             <b>{_m3(canal_grand_total)}</b>Oferta canal total
             <div class="canal-breakdown">
@@ -192,10 +208,6 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
           <div class="kpi"><b>{_m3(def_total)}</b>Déficit total</div>
           <div class="kpi"><b>{est_util_avg:.1f}%</b>% util. estanque</div>
           <div class="kpi"><b>{_m3(est_med_total / n_part)}</b>Nivel med. estanque</div>
-          <div class="kpi"><b>{_clp(ingreso_total)}</b>Ingreso total</div>
-          <div class="kpi"><b>{_clp(costo_total)}</b>Costo total</div>
-          <div class="kpi"><b>{_clp(margen_total)}</b>Margen total</div>
-          <div class="kpi"><b>{prod_total:,.1f} kg</b>Producción total</div>
         </div>"""
 
         # ---- Estado compartido del agua ----
@@ -447,23 +459,26 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
         graficos_html = ''.join(graficos_parts_html)
 
         secciones.append(f"""
-        <h2>Escenario {esc:+d}</h2>
-        <div class="nota">{nota_agua}</div>
-        <h3>Combinación seleccionada</h3>
-        <div class="combinacion">{badges_html}</div>
-        {kpis_html}
-        <h3>Estado del agua compartida (estanque y subterránea)</h3>
-        {water_state_html}
-        {'<h3>Presupuesto</h3>' + ppto_html if ppto_html else ''}
-        <h3>Calendario de cultivo por partición</h3>
-        {gantt_html}
-        <h3>Calidad de cosecha por partición</h3>
-        {tabla_calidad}
-        <h3>Rentabilidad por partición</h3>
-        {tabla_rent}
-        {'<h3>Simulación diaria por partición</h3>' + graficos_html if graficos_html else ''}
-        <h3>Ranking de combinaciones evaluadas</h3>
-        {pasos_html}
+        <div class="section-card">
+          <h2>Escenario {esc:+d}</h2>
+          <div class="nota">{nota_agua}</div>
+          <h3>Combinación seleccionada</h3>
+          <div class="combinacion">{badges_html}</div>
+          <h3>Indicadores del portafolio</h3>
+          {kpis_html}
+          <h3>Estado del agua compartida</h3>
+          {water_state_html}
+          {'<h3>Presupuesto</h3>' + ppto_html if ppto_html else ''}
+          <h3>Calendario de cultivo por partición</h3>
+          {gantt_html}
+          <h3>Calidad de cosecha por partición</h3>
+          {tabla_calidad}
+          <h3>Rentabilidad por partición</h3>
+          {tabla_rent}
+          {'<h3>Simulación diaria por partición</h3>' + graficos_html if graficos_html else ''}
+          <h3>Ranking de combinaciones evaluadas</h3>
+          {pasos_html}
+        </div>
         """)
 
     html = f"""<!DOCTYPE html><html lang="es"><head>
@@ -471,7 +486,8 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
     <title>Reporte Particiones — {n_part} Particiones</title>
     <style>{css}
     .btn-mas{{background:#2563a8;color:#fff;border:none;border-radius:5px;
-              padding:6px 18px;font-size:.82rem;cursor:pointer;margin:6px 0 18px}}
+              padding:7px 20px;font-size:.82rem;cursor:pointer;margin:8px 0 20px;
+              letter-spacing:.2px;box-shadow:0 1px 4px rgba(0,0,0,.15)}}
     .btn-mas:hover{{background:#1a3d6e}}
     </style>
     <script>
@@ -486,10 +502,12 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
     </script></head><body>
     <div class="header">
       <h1>Selección de Cultivos por Partición</h1>
-      <p>Regante #{rid} {rnom}
-         &nbsp;|&nbsp; Superficie total: <b>{ha_tot:.2f} ha</b>
-         &nbsp;|&nbsp; <b>{n_part} particiones</b> de {ha_p*10_000:,.0f} m² c/u
-         &nbsp;|&nbsp; Generado: {fecha}</p>
+      <div class="header-meta">
+        <span>Regante <b>#{rid} {rnom}</b></span>
+        <span>Superficie total <b>{ha_tot:.2f} ha</b></span>
+        <span><b>{n_part} particiones</b> de {ha_p*10_000:,.0f} m² c/u</span>
+        <span>Generado <b>{fecha}</b></span>
+      </div>
     </div>
     <div class="container">
       {''.join(secciones)}
