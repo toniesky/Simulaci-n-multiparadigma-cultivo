@@ -502,9 +502,9 @@ El modelo clasifica la producción simulada en tres categorías:
 |---|---|---|
 | **Primera** | 1.0 × precio | Producto sin estrés significativo; cumple estándares de calidad plenos |
 | **Segunda** | 0.6 × precio | Producto con estrés moderado; comercializable con descuento |
-| **Pérdida** | 0.05 × precio | Producto con estrés severo; descartado o sin valor comercial relevante |
+| **Pérdida** | 0.0 × precio | Producto con estrés severo; descartado o sin valor comercial relevante |
 
-Los factores de valorización (1.0, 0.6, 0.05) son parámetros de hipótesis que buscan representar la diferencia de precio entre categorías comerciales típicas en hortalizas de la zona; su estimación definitiva requiere datos de mercado y registros de clasificación de terreno.
+Los factores de valorización (1.0, 0.6, 0.0) son parámetros de hipótesis que buscan representar la diferencia de precio entre categorías comerciales típicas en hortalizas de la zona; su estimación definitiva requiere datos de mercado y registros de clasificación de terreno.
 
 Las proporciones de cada categoría se calculan mediante funciones exponencial y sigmoidal del estrés efectivo corregido:
 
@@ -530,7 +530,7 @@ Estos ajustes, umbrales y límites son parámetros configurables del modelo. La 
 El ingreso real registrado como salida del modelo resulta de ponderar el ingreso ideal (precio de mercado por producción potencial completa) por el factor de calidad compuesto $F$:
 
 $$
-F = p_1 \cdot 1.0 + p_2 \cdot 0.6 + p_{loss} \cdot 0.05
+F = p_1 \cdot 1.0 + p_2 \cdot 0.6 + p_{loss} \cdot 0.0
 $$
 
 $$

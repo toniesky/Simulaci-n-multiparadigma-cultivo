@@ -130,11 +130,11 @@ def _simular_combinacion(base, regante, c, df_clima_full, escenario, df_prod=Non
     ))
 
     # Ingreso real ajustado por calidad (PASO 2-5)
-    # Factores de valorización: Primera=1.0, Segunda=0.6, Pérdida=0.05
+    # Factores de valorización: Primera=1.0, Segunda=0.6, Pérdida=0.0 (sin ingreso)
     _p1  = info['kpis']['Primera_%'] / 100.0
     _p2  = info['kpis']['Segunda_%'] / 100.0
     _pp  = info['kpis']['Perdida_%'] / 100.0
-    _F   = _p1 * 1.0 + _p2 * 0.6 + _pp * 0.05
+    _F   = _p1 * 1.0 + _p2 * 0.6 + _pp * 0.0
     _ing_ideal = info['kpis'].get('Ingreso_ideal_clp')
     _costo     = info['kpis'].get('Costo_clp')
     if _ing_ideal is not None:
@@ -207,7 +207,7 @@ def _kpis_de_df_sim(df_sim, c, ha_part, fraccion_cult, dia_siembra, df_prod):
     _p1 = kpis['Primera_%'] / 100.0
     _p2 = kpis['Segunda_%'] / 100.0
     _pp = kpis['Perdida_%'] / 100.0
-    _F  = _p1 * 1.0 + _p2 * 0.6 + _pp * 0.05
+    _F  = _p1 * 1.0 + _p2 * 0.6 + _pp * 0.0
     _ing_ideal = kpis.get('Ingreso_ideal_clp')
     _costo     = kpis.get('Costo_clp')
     if _ing_ideal is not None:
