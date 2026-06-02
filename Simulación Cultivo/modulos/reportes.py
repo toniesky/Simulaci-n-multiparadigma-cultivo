@@ -161,10 +161,16 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
         if not pasos_esc:
             continue
 
+        # ---- CSS extra para no_plantar ----
+        # (ya incluido en regla .badge; solo necesitamos la variante gris)
+
         # ---- Badges ----
         badges_html = ''.join(
-            f'<div class="badge"><span>P{ps["particion"]}</span>'
-            f'{ps["cultivo"].title()}</div>'
+            (f'<div class="badge" style="background:#6b7280">'  # gris para no plantar
+             f'<span>P{ps["particion"]}</span>No plantar</div>')
+            if ps['cultivo'] == 'no_plantar' else
+            (f'<div class="badge"><span>P{ps["particion"]}</span>'
+             f'{ps["cultivo"].title()}</div>')
             for ps in pasos_esc
         )
 
@@ -260,6 +266,10 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
 
         # ---- Tabla Calidad por partición ----
         def _fila_calidad(ps):
+            if ps['cultivo'] == 'no_plantar':
+                return (f'<tr><td>P{ps["particion"]}</td>'
+                        f'<td style="color:#6b7280">No plantar</td>'
+                        f'<td colspan="4" style="color:#9ca3af;text-align:center">—</td></tr>')
             k = ps['kpis']
             p1   = k.get('Primera_%')
             p2   = k.get('Segunda_%')
@@ -293,6 +303,10 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
 
         # ---- Tabla Rentabilidad por partición ----
         def _fila_rent(ps):
+            if ps['cultivo'] == 'no_plantar':
+                return (f'<tr><td>P{ps["particion"]}</td>'
+                        f'<td style="color:#6b7280">No plantar</td>'
+                        f'<td colspan="4" style="color:#9ca3af;text-align:center">—</td></tr>')
             k = ps['kpis']
             ing_id = k.get('Ingreso_ideal_clp')
             ing_r  = k.get('Ingreso_real_clp')
@@ -331,7 +345,12 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
             filas_ext  = ''
             for rank, cb in enumerate(todas_combos, 1):
                 es_mejor  = (cb['cultivos'] == cultivos_mejor)
-                celdas_p  = ''.join(f'<td>{c.title()}</td>' for c in cb['cultivos'])
+                celdas_p  = ''.join(
+                    f'<td style="color:#6b7280">No plantar</td>'
+                    if c == 'no_plantar' else
+                    f'<td>{c.title()}</td>'
+                    for c in cb['cultivos']
+                )
                 excede_tag = ('<span class="excede">Excede ppto</span>'
                               if cb.get('excede_presupuesto') else '&#10003;')
                 fila = (f'<tr class="{"ganador" if es_mejor else ""}">'
@@ -370,14 +389,18 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
         _crop_color = {}
         for _ps in pasos_esc:
             _c = _ps['cultivo']
+            if _c == 'no_plantar':
+                continue   # no_plantar no tiene color en la leyenda
             if _c not in _crop_color:
                 _crop_color[_c] = _PALETTE[len(_crop_color) % len(_PALETTE)]
 
         _ds   = pasos_esc[0].get('dia_siembra', 1)
         _t0   = _date(2025, 1, 1) + _td(days=P.DIA_INICIO_SIMULACION + _ds - 2)
-        _max_dias = max(
+        _dias_cultivos = [
             sum(ps.get('etapas', {}).get(k, 0) for k in ('L_ini','L_des','L_med','L_fin'))
-            for ps in pasos_esc) or 1
+            for ps in pasos_esc if ps['cultivo'] != 'no_plantar'
+        ]
+        _max_dias = max(_dias_cultivos) if _dias_cultivos else 90
         _span = _max_dias + 15
         _stage_ops  = ETAPAS_OPACIDAD
         _stage_lbls = ETAPAS_LABELS
@@ -395,6 +418,14 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
         # Filas del Gantt
         _filas_g = ''
         for _ps in pasos_esc:
+            if _ps['cultivo'] == 'no_plantar':
+                _filas_g += (f'<div class="gantt-row">'  
+                             f'<div class="gantt-lbl">P{_ps["particion"]}'  
+                             f'<br><span style="color:#6b7280">No plantar</span></div>'
+                             f'<div class="gantt-track">'
+                             f'<div style="font-size:.78rem;color:#9ca3af;padding-left:8px">'
+                             f'— sin cultivo —</div></div></div>')
+                continue
             _e = _ps.get('etapas', {})
             if not _e:
                 continue
@@ -437,6 +468,8 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
         # ---- Gráficos de simulación diaria de la mejor combinación ----
         graficos_parts_html = []
         for _ps in pasos_esc:
+            if _ps['cultivo'] == 'no_plantar':
+                continue
             _g = _ps.get('graficos')
             if not _g:
                 continue

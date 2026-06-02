@@ -149,8 +149,8 @@ def main():
         print()
 
         for esc in escenarios:
-            mejor_score      = float('-inf')
-            mejor_combo      = None
+            mejor_score      = 0.0          # baseline: no plantar tiene score=0
+            mejor_combo      = None          # None => no_plantar es la mejor opción
             combos_evaluadas = []
 
             print(f'  [ESC {esc:+d}] Evaluando {n_total} combinaciones...')
@@ -198,74 +198,121 @@ def main():
                     mejor_score = total_score
                     mejor_combo = combos_evaluadas[-1]
 
-            # Si todas las combinaciones exceden el presupuesto, tomar la más barata
+            # Agregar "no plantar" como opción explícita en el ranking
+            combos_evaluadas.append({
+                'combo_idx':          None,
+                'cultivos':           ['no_plantar'] * particiones,
+                'score':              0.0,
+                'costo_total':        0.0,
+                'excede_presupuesto': False,
+                'kpis_list':          None,
+            })
+
+            # Si ningún combo superó score=0, recomendar no plantar
             if mejor_combo is None:
-                print(f'  [WARN] Esc {esc:>+2d}: todas las combinaciones superan el '
-                      f'presupuesto. Se elige la más barata.')
-                mejor_combo = min(combos_evaluadas, key=lambda x: x['costo_total'])
+                todos_exceden = all(c['excede_presupuesto']
+                                    for c in combos_evaluadas
+                                    if c['combo_idx'] is not None)
+                motivo = ('todas las combinaciones superan el presupuesto'
+                          if todos_exceden else 'ningún cultivo supera margen positivo')
+                print(f'  [INFO] Esc {esc:>+2d}: {motivo}. Recomendación: NO PLANTAR.')
 
             combos_evaluadas.sort(key=lambda x: x['score'], reverse=True)
 
-            cultivos_mejor = mejor_combo['cultivos']
+            cultivos_mejor = mejor_combo['cultivos'] if mejor_combo else ['no_plantar'] * particiones
             print(f'  [MEJOR] Esc {esc:>+2d}: '
-                  + ' | '.join(f'P{i+1}={c.title()}' for i, c in enumerate(cultivos_mejor))
-                  + f'  score={mejor_combo["score"]:,.0f}  costo=${mejor_combo["costo_total"]:,.0f}')
+                  + ' | '.join(f'P{i+1}={"No plantar" if c == "no_plantar" else c.title()}' for i, c in enumerate(cultivos_mejor))
+                  + (f'  score={mejor_combo["score"]:,.0f}  costo=${mejor_combo["costo_total"]:,.0f}'
+                     if mejor_combo else '  score=0  costo=$0'))
 
-            # Simulación final de la mejor combinación (para CSV detalle diario)
-            crops_mejor = [cult_rows[i] for i in mejor_combo['combo_idx']]
-            d_max_fin   = max(int(c['L_ini'] + c['L_des'] + c['L_med'] + c['L_fin'])
-                              for c in crops_mejor)
-            oferta_fin, en_par_fin, recarga_sub_fin = cargar_oferta_superficial_m3(
-                base, d_max_fin, dia_siembra, esc)
-            dfs_fin, est_fin, sub_fin = simular_multi_particion(
-                crops_mejor, ha_part, regante, df_clima_sim, oferta_fin, en_par_fin,
-                recarga_sub_diaria=recarga_sub_fin)
+            est_ini = float(regante['nivel_estanque_inicial_m3'])
+            sub_ini = float(P.STOCK_SUBTERRANEO_INICIAL_M3)
 
-            est_ini     = float(regante['nivel_estanque_inicial_m3'])
-            sub_ini     = float(P.STOCK_SUBTERRANEO_INICIAL_M3)
-            costos_acum = 0.0
+            if mejor_combo is None:
+                # ── Caso no_plantar: no se simula, KPIs en cero ────────────────
+                _kpis_np = {k: 0.0 for k in [
+                    'Margen_real_clp', 'Ingreso_ideal_clp', 'Ingreso_real_clp', 'Costo_clp',
+                    'Produccion_real', 'Aplicado_m3', 'Deficit_m3', 'OfertaCanal_m3',
+                    'Subterranea_m3', 'Estanque_medio_m3', 'Canal_Riego_m3',
+                    'Canal_Estanque_m3', 'Perdida_m3', 'OfertaCanal_total_m3',
+                    'Primera_%', 'Segunda_%', 'Perdida_%', 'Cobertura_%',
+                ]}
+                for p in range(particiones):
+                    pasos_greedy.append({
+                        'esc': esc, 'particion': p + 1, 'cultivo': 'no_plantar',
+                        'score': 0.0,
+                        'estanque_ini': est_ini, 'estanque_fin': est_ini,
+                        'sub_ini': sub_ini,      'sub_fin': sub_ini,
+                        'kpis': _kpis_np.copy(),
+                        'graficos': None,
+                        'presupuesto_total':   presupuesto_total,
+                        'presupuesto_antes':   presupuesto_total,
+                        'presupuesto_costo':   0.0,
+                        'presupuesto_despues': presupuesto_total,
+                        'todas_combos': combos_evaluadas if p == 0 else None,
+                        'dia_siembra': dia_siembra,
+                        'etapas': {'L_ini': 0, 'L_des': 0, 'L_med': 0, 'L_fin': 0},
+                    })
+                    fila = {'Escenario': esc, 'Particion': p + 1, 'Cultivo': 'no_plantar'}
+                    fila.update(_kpis_np)
+                    resumen_filas_p.append(fila)
+            else:
+                # ── Simulación final de la mejor combinación (CSV detalle diario) ─
+                crops_mejor = [cult_rows[i] for i in mejor_combo['combo_idx']]
+                d_max_fin   = max(int(c['L_ini'] + c['L_des'] + c['L_med'] + c['L_fin'])
+                                  for c in crops_mejor)
+                oferta_fin, en_par_fin, recarga_sub_fin = cargar_oferta_superficial_m3(
+                    base, d_max_fin, dia_siembra, esc)
+                dfs_fin, est_fin, sub_fin = simular_multi_particion(
+                    crops_mejor, ha_part, regante, df_clima_sim, oferta_fin, en_par_fin,
+                    recarga_sub_diaria=recarga_sub_fin)
 
-            for p, (c, df_s) in enumerate(zip(crops_mejor, dfs_fin)):
-                cultivo_p  = str(c['nombre']).strip().lower()
-                kpis_p     = _kpis_de_df_sim(df_s, c, ha_part, frac_cult, dia_siembra, df_prod)
-                graficos_p = _graficos_b64(df_s, esc, 0)
-                costo_p    = float(kpis_p.get('Costo_clp', 0) or 0)
-                ppto_a    = (presupuesto_total - costos_acum) if presupuesto_total else None
-                ppto_d    = (ppto_a - costo_p)               if ppto_a is not None else None
-                costos_acum += costo_p
+                costos_acum = 0.0
 
-                pasos_greedy.append({
-                    'esc': esc, 'particion': p + 1, 'cultivo': cultivo_p,
-                    'score': kpis_p.get('Margen_real_clp', 0),
-                    'estanque_ini': est_ini, 'estanque_fin': est_fin,
-                    'sub_ini': sub_ini,      'sub_fin': sub_fin,
-                    'kpis': kpis_p,
-                    'graficos': graficos_p,
-                    'presupuesto_total':   presupuesto_total,
-                    'presupuesto_antes':   ppto_a,
-                    'presupuesto_costo':   costo_p,
-                    'presupuesto_despues': ppto_d,
-                    'todas_combos': combos_evaluadas if p == 0 else None,
-                    'dia_siembra': dia_siembra,
-                    'etapas': {
-                        'L_ini': int(c['L_ini']),
-                        'L_des': int(c['L_des']),
-                        'L_med': int(c['L_med']),
-                        'L_fin': int(c['L_fin']),
-                    },
-                })
+                for p, (c, df_s) in enumerate(zip(crops_mejor, dfs_fin)):
+                    cultivo_p  = str(c['nombre']).strip().lower()
+                    kpis_p     = _kpis_de_df_sim(df_s, c, ha_part, frac_cult, dia_siembra, df_prod)
+                    graficos_p = _graficos_b64(df_s, esc, 0)
+                    costo_p    = float(kpis_p.get('Costo_clp', 0) or 0)
+                    ppto_a    = (presupuesto_total - costos_acum) if presupuesto_total else None
+                    ppto_d    = (ppto_a - costo_p)               if ppto_a is not None else None
+                    costos_acum += costo_p
 
-                df_det = df_s.copy()
-                df_det.insert(0, 'Particion', p + 1)
-                df_det.insert(0, 'Escenario', esc)
-                detalle_filas_p.append(df_det)
+                    pasos_greedy.append({
+                        'esc': esc, 'particion': p + 1, 'cultivo': cultivo_p,
+                        'score': kpis_p.get('Margen_real_clp', 0),
+                        'estanque_ini': est_ini, 'estanque_fin': est_fin,
+                        'sub_ini': sub_ini,      'sub_fin': sub_fin,
+                        'kpis': kpis_p,
+                        'graficos': graficos_p,
+                        'presupuesto_total':   presupuesto_total,
+                        'presupuesto_antes':   ppto_a,
+                        'presupuesto_costo':   costo_p,
+                        'presupuesto_despues': ppto_d,
+                        'todas_combos': combos_evaluadas if p == 0 else None,
+                        'dia_siembra': dia_siembra,
+                        'etapas': {
+                            'L_ini': int(c['L_ini']),
+                            'L_des': int(c['L_des']),
+                            'L_med': int(c['L_med']),
+                            'L_fin': int(c['L_fin']),
+                        },
+                    })
 
-                fila = {'Escenario': esc, 'Particion': p + 1, 'Cultivo': cultivo_p}
-                fila.update(kpis_p)
-                resumen_filas_p.append(fila)
+                    df_det = df_s.copy()
+                    df_det.insert(0, 'Particion', p + 1)
+                    df_det.insert(0, 'Escenario', esc)
+                    detalle_filas_p.append(df_det)
+
+                    fila = {'Escenario': esc, 'Particion': p + 1, 'Cultivo': cultivo_p}
+                    fila.update(kpis_p)
+                    resumen_filas_p.append(fila)
 
         df_resumen_p = pd.DataFrame(resumen_filas_p)
-        df_detalle_p = pd.concat(detalle_filas_p, ignore_index=True)
+        if detalle_filas_p:
+            df_detalle_p = pd.concat(detalle_filas_p, ignore_index=True)
+        else:
+            df_detalle_p = pd.DataFrame()
         out_resumen_p = os.path.join(base, P.DIR_SALIDA, 'ReporteParticiones.csv')
         out_detalle_p = os.path.join(base, P.DIR_SALIDA, 'SimulacionParticiones.csv')
         df_resumen_p.to_csv(out_resumen_p, index=False)
