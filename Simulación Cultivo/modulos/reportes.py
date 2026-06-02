@@ -29,7 +29,7 @@ def _fmt_num(v, dec=1):
 def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greedy):
     _cap_est_m3 = float(regante.get('capacidad_estanque_m3', 1.0)) or 1.0
     """Genera un reporte HTML para el modo de selección greedy por particiones.
-    Muestra la cadena: Agua disponible → Humedad suelo → Calidad → Rentabilidad real."""
+    Muestra Calidad y Rentabilidad como secciones separadas antes de los gráficos."""
     fecha        = datetime.now().strftime('%Y-%m-%d %H:%M')
     ha_tot       = float(regante['hectareas'])
     frac_cult    = float(regante.get('fraccion_cultivada', 1.0))
@@ -246,97 +246,66 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
         else:
             ppto_html = ''
 
-        # ---- Tabla encadenada: Agua → Humedad → Calidad → Rentabilidad ----
-        def _fila_chain(ps):
+        # ---- Tabla Calidad por partición ----
+        def _fila_calidad(ps):
             k = ps['kpis']
-            canal      = k.get('OfertaCanal_m3', 0) or 0
-            sub        = k.get('Subterranea_m3', 0) or 0
-            aplic      = k.get('Aplicado_m3', 0) or 0
-            est_uso    = max(0.0, float(aplic) - float(canal) - float(sub))
-            deficit    = k.get('Deficit_m3', 0) or 0
-            est_med    = k.get('Estanque_medio_m3')
-            est_util   = (round(float(est_med) / _cap_est_m3 * 100, 1)
-                          if est_med is not None else None)
-            cob     = k.get('Cobertura_%')
-            h_med   = k.get('Theta_vol_med_%')
-            h_min   = k.get('Theta_vol_min_%')
-            d_str   = k.get('Dias_estres', 0) or 0
-            p1      = k.get('Primera_%')
-            p2      = k.get('Segunda_%')
-            pp      = k.get('Perdida_%')
-            ing_id  = k.get('Ingreso_ideal_clp')
-            ing_r   = k.get('Ingreso_real_clp')
-            mar_r   = k.get('Margen_real_clp')
-            # Factor calidad
+            p1   = k.get('Primera_%')
+            p2   = k.get('Segunda_%')
+            pp   = k.get('Perdida_%')
             _p1f = (float(p1)/100 if p1 is not None else 0)
             _p2f = (float(p2)/100 if p2 is not None else 0)
             _ppf = (float(pp)/100 if pp is not None else 0)
-            fq = _p1f*1.0 + _p2f*0.6 + _ppf*0.05
-            fq_str = f"{fq*100:.1f}%" if fq > 0 else 'n/d'
+            fq = _p1f*1.0 + _p2f*0.6 + _ppf*0.0
+            fq_str = f"{fq*100:.1f}%" if (_p1f + _p2f + _ppf) > 0 else 'n/d'
             return f"""<tr>
               <td>P{ps['particion']}</td>
               <td>{ps['cultivo'].title()}</td>
-              <td class="sec-agua">{_m3(canal)}</td>
-              <td class="sec-agua">{_m3(sub)}</td>
-              <td class="sec-agua">{_m3(est_uso)}</td>
-              <td class="sec-agua">{_m3(aplic)}</td>
-              <td class="sec-agua">{_m3(deficit)}</td>
-              <td class="sec-agua">{_pct(cob)}</td>
-              <td class="sec-agua">{_m3(est_med)}</td>
-              <td class="sec-agua">{_pct(est_util)}</td>
-              <td class="sec-hum">{_pct(h_med)}</td>
-              <td class="sec-hum">{_pct(h_min)}</td>
-              <td class="sec-hum">{d_str} días</td>
               <td class="sec-cal">{_pct(p1)}{_bar(p1,'green')}</td>
               <td class="sec-cal">{_pct(p2)}{_bar(p2,'orange')}</td>
               <td class="sec-cal">{_pct(pp)}{_bar(pp,'red')}</td>
               <td class="sec-cal">{fq_str}</td>
+            </tr>"""
+
+        filas_calidad = ''.join(_fila_calidad(ps) for ps in pasos_esc)
+        tabla_calidad = f"""
+        <table>
+          <tr>
+            <th>Part.</th><th>Cultivo</th>
+            <th class="sec-cal">1ª calidad</th>
+            <th class="sec-cal">2ª calidad</th>
+            <th class="sec-cal">Pérdida</th>
+            <th class="sec-cal">Factor calidad</th>
+          </tr>
+          {filas_calidad}
+        </table>"""
+
+        # ---- Tabla Rentabilidad por partición ----
+        def _fila_rent(ps):
+            k = ps['kpis']
+            ing_id = k.get('Ingreso_ideal_clp')
+            ing_r  = k.get('Ingreso_real_clp')
+            mar_r  = k.get('Margen_real_clp')
+            costo  = k.get('Costo_clp')
+            return f"""<tr>
+              <td>P{ps['particion']}</td>
+              <td>{ps['cultivo'].title()}</td>
               <td class="sec-rent">{_clp(ing_id)}</td>
               <td class="sec-rent">{_clp(ing_r)}</td>
+              <td class="sec-rent">{_clp(costo)}</td>
               <td class="sec-rent">{_clp(mar_r)}</td>
             </tr>"""
 
-        filas_chain = ''.join(_fila_chain(ps) for ps in pasos_esc)
-        tabla_chain = f"""
-        <p style="font-size:.82rem;color:#555;margin:0 0 6px">
-          <span class="chain-label">💧 Agua aplicada</span>
-          <span class="chain-arrow">→</span>
-          <span class="chain-label">🌱 Humedad suelo</span>
-          <span class="chain-arrow">→</span>
-          <span class="chain-label">🏆 Calidad cosecha</span>
-          <span class="chain-arrow">→</span>
-          <span class="chain-label">💰 Rentabilidad real</span>
-        </p>
+        filas_rent = ''.join(_fila_rent(ps) for ps in pasos_esc)
+        tabla_rent = f"""
         <table>
           <tr>
-            <th rowspan="2">Part.</th>
-            <th rowspan="2">Cultivo</th>
-            <th colspan="8" class="sec-agua">💧 Agua aplicada (m³)</th>
-            <th colspan="3" class="sec-hum">🌱 Humedad suelo</th>
-            <th colspan="4" class="sec-cal">🏆 Calidad cosecha</th>
-            <th colspan="3" class="sec-rent">💰 Rentabilidad</th>
+            <th>Part.</th><th>Cultivo</th>
+            <th class="sec-rent">Ingreso ideal</th>
+            <th class="sec-rent">Ingreso real</th>
+            <th class="sec-rent">Costo</th>
+            <th class="sec-rent">Margen real</th>
           </tr>
-          <tr>
-            <th class="sec-agua">Superficial</th>
-            <th class="sec-agua">Subterr.</th>
-            <th class="sec-agua">Estanque</th>
-            <th class="sec-agua">Total</th>
-            <th class="sec-agua">Déficit</th>
-            <th class="sec-agua">Cobertura</th>
-            <th class="sec-agua">Nivel med. est.</th>
-            <th class="sec-agua">% util. est.</th>
-            <th class="sec-hum">θ med (vol%)</th>
-            <th class="sec-hum">θ mín (vol%)</th>
-            <th class="sec-hum">Días estrés</th>
-            <th class="sec-cal">1ª</th>
-            <th class="sec-cal">2ª</th>
-            <th class="sec-cal">Pérdida</th>
-            <th class="sec-cal">F. calidad</th>
-            <th class="sec-rent">Ing. ideal</th>
-            <th class="sec-rent">Ing. real</th>
-            <th class="sec-rent">Margen</th>
-          </tr>
-          {filas_chain}
+          {filas_rent}
         </table>"""
 
         # ---- Ranking de combinaciones evaluadas ----
@@ -488,9 +457,11 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
         {'<h3>Presupuesto</h3>' + ppto_html if ppto_html else ''}
         <h3>Calendario de cultivo por partición</h3>
         {gantt_html}
+        <h3>Calidad de cosecha por partición</h3>
+        {tabla_calidad}
+        <h3>Rentabilidad por partición</h3>
+        {tabla_rent}
         {'<h3>Simulación diaria por partición</h3>' + graficos_html if graficos_html else ''}
-        <h3>Trade-off: Agua disponible → Humedad → Calidad → Rentabilidad por partición</h3>
-        {tabla_chain}
         <h3>Ranking de combinaciones evaluadas</h3>
         {pasos_html}
         """)
