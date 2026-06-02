@@ -279,7 +279,10 @@ def main():
         try:
             import webbrowser
             from pathlib import Path
-            webbrowser.open(Path(out_html_p).as_uri())
+            url = Path(out_html_p).as_uri()
+            opened = webbrowser.open_new(url)
+            if not opened:
+                os.startfile(out_html_p)
         except Exception as e:
             print(f'[WARN] No se pudo abrir el HTML automaticamente: {e}')
 
