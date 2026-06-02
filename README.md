@@ -215,10 +215,29 @@ Para cada paso de integración $t$ y para cada escenario $e_i$, el **flujo de en
 AperturaCanal = TurnoActivo AND NOT EnParada
 ```
 
-- **TurnoActivo**: el paso temporal $t$ corresponde a un día de turno del regante (múltiplo de `FRECUENCIA_TURNO`).
+- **TurnoActivo**: el paso temporal $t$ corresponde a un día de turno del regante según el contador de días hábiles (ver más abajo).
 - **EnParada**: $t$ cae dentro de una ventana de mantenimiento definida por `CALENDARIO_PARADAS` + `DURACION_MANTENIMIENTO`.
 
 Cuando la condición no se satisface, el flujo de entrada es nulo y la **variable de nivel** del stock predial no experimenta acumulación en ese paso de integración: $Q_{neta}(t) = 0$.
+
+#### Política de turno: el contador de días hábiles se congela durante las paradas
+
+El ciclo de turno se define sobre **días hábiles** (días en que el canal no está en mantenimiento), no sobre días calendario. Durante un período de parada, el contador de posición dentro del ciclo de `FRECUENCIA_TURNO` permanece congelado: al reanudarse el canal, el conteo retoma exactamente donde se detuvo.
+
+Consecuencia directa: una parada de $n$ días posterga todos los turnos futuros en $n$ días calendario, independientemente de en qué posición del ciclo se encontrara el contador al inicio de la parada. Esto refleja la práctica habitual de los canales de riego: el tiempo de corte no consume días de turno.
+
+Ejemplo con `FRECUENCIA_TURNO = 9`:
+
+```
+Día 148 (hábil 148): turno → AperturaCanal = 1  ← contador en posición 9 → reinicia
+Días 149–151 (hábiles 149–151): sin turno → contador en posición 3
+Días 152–159: PARADA 8 días → contador se queda en 3, AperturaCanal = 0
+Día 160 (hábil 152): sin turno → contador en posición 4
+...
+Día 165 (hábil 157): sin turno → contador en posición 9 → TurnoActivo = 1 → AperturaCanal = 1
+```
+
+El turno que antes de la implementación de esta política caía en el día 157 (9 días calendario desde el último turno) ahora cae en el día 165: la parada de 8 días se desplazó íntegramente al futuro. El período real sin agua del canal —medido en días calendario con `AperturaCanal = 0`— es de 16 días consecutivos (días 149–164), que es el valor que registran los indicadores de disponibilidad.
 
 ### 3.4 Modelado estocástico de pérdidas y oferta neta
 

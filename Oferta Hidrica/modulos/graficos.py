@@ -66,10 +66,56 @@ def graficar(resultados, iv, output_path):
     )
     axes[0].grid(True, alpha=0.3, axis='y')
     axes[0].set_ylim(0, 30)
+
+    # --- Flechas de postergación de turno ---
+    # Para cada período de parada, buscar el primer turno posterior (AperturaCanal=1)
+    # y dibujar una flecha horizontal desde el fin de la parada hasta ese turno.
+    en_parada = resultados['EnParada'].values
+    apertura = resultados['AperturaCanal'].values
+    n = len(resultados)
+    flechas_dibujadas = set()
+    i = 0
+    while i < n:
+        if en_parada[i] == 1:
+            inicio_parada = i
+            while i < n and en_parada[i] == 1:
+                i += 1
+            fin_parada = i - 1  # último día de parada
+            # Buscar primer turno después del fin de parada
+            j = fin_parada + 1
+            while j < n and apertura[j] == 0:
+                j += 1
+            if j < n and fin_parada not in flechas_dibujadas:
+                fecha_fin = fechas.iloc[fin_parada]
+                fecha_turno = fechas.iloc[j]
+                y_flecha = 22.0
+                axes[0].annotate(
+                    '',
+                    xy=(fecha_turno, y_flecha),
+                    xytext=(fecha_fin, y_flecha),
+                    arrowprops=dict(
+                        arrowstyle='->', color='darkred', lw=1.8,
+                        connectionstyle='arc3,rad=0.0',
+                    ),
+                )
+                duracion_parada = fin_parada - inicio_parada + 1
+                fecha_mid = fecha_fin + (fecha_turno - fecha_fin) / 2
+                axes[0].text(
+                    fecha_mid, y_flecha + 1.2,
+                    f'+{duracion_parada}d posterg.',
+                    ha='center', va='bottom', fontsize=7.5,
+                    color='darkred', fontweight='bold',
+                )
+                flechas_dibujadas.add(fin_parada)
+        else:
+            i += 1
+
     axes[0].legend(handles=[
         Patch(facecolor='blue', alpha=0.9, label='Turno/Desmarque (Oferta Superficial)'),
         Patch(facecolor='red', alpha=0.4, label=f'Período Mantenimiento ({iv.DURACION_MANTENIMIENTO} días)'),
         Patch(facecolor='lightgray', alpha=0.3, label='Otros días'),
+        plt.Line2D([0], [0], color='darkred', lw=1.8,
+                   marker='>', markersize=7, label='Postergación de turno'),
     ], loc='upper right', fontsize=10)
 
     # ===== PANEL 2: Recargas de agua subterránea =====

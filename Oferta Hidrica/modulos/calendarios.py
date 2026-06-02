@@ -24,24 +24,42 @@ def generar_calendario(iv):
     fecha_inicio = datetime.strptime(iv.FECHA_INICIO, "%Y-%m-%d")
     fechas = [fecha_inicio + timedelta(days=i - 1) for i in dias]
 
+    # Los días de parada se calculan primero para congelar el contador de turno.
+    # Política: el tiempo de parada NO cuenta como días hábiles para el ciclo
+    # de turno. El contador sólo avanza en días hábiles (fuera de parada); al
+    # reanudar tras una parada continúa exactamente donde se detuvo.
+    dias_parada = _dias_en_parada(iv)
+
     turnos = []
     numero_turno = 1
-    for dia in dias:
-        dia_en_turno = ((dia - 1) % iv.FRECUENCIA_TURNO) + 1
-        turno_activo = 1 if dia_en_turno == 1 else 0
+    dias_habiles = 0  # contador de días hábiles (excluye días de parada)
+
+    for i, dia in enumerate(dias):
+        en_parada = 1 if dia in dias_parada else 0
+
+        if not en_parada:
+            dias_habiles += 1
+            dia_en_turno = ((dias_habiles - 1) % iv.FRECUENCIA_TURNO) + 1
+            turno_activo = 1 if dia_en_turno == 1 else 0
+        else:
+            # Congelado: muestra la posición actual en el ciclo sin avanzar
+            dia_en_turno = ((dias_habiles - 1) % iv.FRECUENCIA_TURNO) + 1 if dias_habiles > 0 else 1
+            turno_activo = 0
+
         turnos.append({
             'Dia': dia,
-            'Fecha': fechas[dia - 1].strftime("%Y-%m-%d"),
+            'Fecha': fechas[i].strftime("%Y-%m-%d"),
             'NumeroTurno': numero_turno,
             'DiaEnTurno': dia_en_turno,
             'TurnoActivo': turno_activo,
         })
-        if dia_en_turno == iv.FRECUENCIA_TURNO:
+
+        # Avanza numero_turno al completar el último día hábil del ciclo
+        if not en_parada and dia_en_turno == iv.FRECUENCIA_TURNO:
             numero_turno += 1
 
     calendario = pd.DataFrame(turnos)
 
-    dias_parada = _dias_en_parada(iv)
     calendario['EnParada'] = calendario['Dia'].apply(lambda d: 1 if d in dias_parada else 0)
     calendario['DuracionMantenimiento'] = calendario['EnParada'].apply(
         lambda x: iv.DURACION_MANTENIMIENTO if x == 1 else 0
