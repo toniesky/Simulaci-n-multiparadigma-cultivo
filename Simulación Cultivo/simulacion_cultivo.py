@@ -138,14 +138,24 @@ def main():
                   f' (se distribuye entre las {particiones} particiones)')
 
         from itertools import combinations_with_replacement as _cwr
+        import numpy as np
 
         cult_rows     = [row for _, row in df_cult.iterrows()]
+
+        # Agregar "no plantar" como cultivo dummy con score=0 en cada particion
+        # Esto permite combos mixtos como [Lechuga, No plantar, Acelga, No plantar]
+        _no_plant_row = df_cult.iloc[0].copy() if not df_cult.empty else None
+        if _no_plant_row is not None:
+            for col in _no_plant_row.index:
+                _no_plant_row[col] = 0
+            _no_plant_row['nombre'] = 'no_plantar'
+            cult_rows = cult_rows + [_no_plant_row]
 
         n_cultivos    = len(cult_rows)
         all_combos_idx = list(_cwr(range(n_cultivos), particiones))
         n_total       = len(all_combos_idx)
-        print(f'[INFO] Modo combinatorio: {n_cultivos} cultivos x {particiones} particiones'
-              f' -> {n_total} combinaciones a evaluar (C(n+p-1,p), sin importar el orden)')
+        print(f'[INFO] Modo combinatorio: {n_cultivos - 1} cultivos + "no plantar" x {particiones} particiones'
+              f' -> {n_total} combinaciones a evaluar (incluye mezclas parciales sin plantar)')
         print()
 
         for esc in escenarios:
@@ -156,24 +166,50 @@ def main():
             print(f'  [ESC {esc:+d}] Evaluando {n_total} combinaciones...')
             for n_eval, combo_idx in enumerate(all_combos_idx, 1):
                 crops_combo = [cult_rows[i] for i in combo_idx]
+
+                # Si todas las particiones son no_plantar, score=0 sin simular
+                if all(str(c['nombre']).strip().lower() == 'no_plantar' for c in crops_combo):
+                    nombres = 'no_plantar x' + str(particiones)
+                    print(f'    {n_eval:>4}/{n_total}  {nombres:<40}  score={0:>12,.0f}  costo=${0:>10,.0f}')
+                    combos_evaluadas.append({
+                        'combo_idx': combo_idx,
+                        'cultivos': ['no_plantar'] * particiones,
+                        'score': 0.0, 'costo_total': 0.0,
+                        'excede_presupuesto': False, 'kpis_list': None,
+                    })
+                    continue
+
+                # Filtrar solo particiones con cultivo real para simular
+                crops_reales = [c for c in crops_combo if str(c['nombre']).strip().lower() != 'no_plantar']
+                n_reales     = len(crops_reales)
+                ha_part_real = (ha_original / particiones)  # cada particion mantiene su superficie
+
                 d_max = max(int(c['L_ini'] + c['L_des'] + c['L_med'] + c['L_fin'])
-                            for c in crops_combo)
+                            for c in crops_reales)
                 oferta, en_par, recarga_sub = cargar_oferta_superficial_m3(base, d_max, dia_siembra, esc)
                 dfs_c, est_fin_c, sub_fin_c = simular_multi_particion(
-                    crops_combo, ha_part, regante, df_clima_sim, oferta, en_par,
+                    crops_reales, ha_part_real, regante, df_clima_sim, oferta, en_par,
                     recarga_sub_diaria=recarga_sub)
 
                 total_score = 0.0
                 total_costo = 0.0
                 kpis_list   = []
-                for i, df_t in enumerate(dfs_c):
-                    kk = _kpis_de_df_sim(df_t, crops_combo[i], ha_part, frac_cult,
-                                          dia_siembra, df_prod)
-                    m = kk.get('Margen_real_clp')
-                    if m is not None and not (isinstance(m, float) and pd.isna(m)):
-                        total_score += float(m)
-                    total_costo += float(kk.get('Costo_clp', 0) or 0)
-                    kpis_list.append(kk)
+                df_idx = 0
+                for i, c in enumerate(crops_combo):
+                    if str(c['nombre']).strip().lower() == 'no_plantar':
+                        kpis_list.append({k: 0.0 for k in [
+                            'Margen_real_clp','Ingreso_real_clp','Costo_clp',
+                            'Produccion_real','Aplicado_m3','Deficit_m3',
+                        ]})
+                    else:
+                        df_t = dfs_c[df_idx]; df_idx += 1
+                        kk = _kpis_de_df_sim(df_t, c, ha_part_real, frac_cult,
+                                              dia_siembra, df_prod)
+                        m = kk.get('Margen_real_clp')
+                        if m is not None and not (isinstance(m, float) and pd.isna(m)):
+                            total_score += float(m)
+                        total_costo += float(kk.get('Costo_clp', 0) or 0)
+                        kpis_list.append(kk)
 
                 excede = (presupuesto_total is not None
                           and total_costo > presupuesto_total + 0.01)
@@ -259,23 +295,42 @@ def main():
             else:
                 # ── Simulación final de la mejor combinación (CSV detalle diario) ─
                 crops_mejor = [cult_rows[i] for i in mejor_combo['combo_idx']]
+                crops_mejor_reales = [c for c in crops_mejor
+                                      if str(c['nombre']).strip().lower() != 'no_plantar']
                 d_max_fin   = max(int(c['L_ini'] + c['L_des'] + c['L_med'] + c['L_fin'])
-                                  for c in crops_mejor)
+                                  for c in crops_mejor_reales) if crops_mejor_reales else 1
                 oferta_fin, en_par_fin, recarga_sub_fin = cargar_oferta_superficial_m3(
                     base, d_max_fin, dia_siembra, esc)
                 dfs_fin, est_fin, sub_fin = simular_multi_particion(
-                    crops_mejor, ha_part, regante, df_clima_sim, oferta_fin, en_par_fin,
+                    crops_mejor_reales, ha_part, regante, df_clima_sim, oferta_fin, en_par_fin,
                     recarga_sub_diaria=recarga_sub_fin)
 
                 costos_acum = 0.0
+                df_fin_idx  = 0   # índice sobre dfs_fin (solo cultivos reales)
 
-                for p, (c, df_s) in enumerate(zip(crops_mejor, dfs_fin)):
-                    cultivo_p  = str(c['nombre']).strip().lower()
-                    kpis_p     = _kpis_de_df_sim(df_s, c, ha_part, frac_cult, dia_siembra, df_prod)
-                    graficos_p = _graficos_b64(df_s, esc, 0)
-                    costo_p    = float(kpis_p.get('Costo_clp', 0) or 0)
-                    ppto_a    = (presupuesto_total - costos_acum) if presupuesto_total else None
-                    ppto_d    = (ppto_a - costo_p)               if ppto_a is not None else None
+                _kpis_np_fin = {k: 0.0 for k in [
+                    'Margen_real_clp','Ingreso_ideal_clp','Ingreso_real_clp','Costo_clp',
+                    'Produccion_real','Aplicado_m3','Deficit_m3','OfertaCanal_m3',
+                    'Subterranea_m3','Estanque_medio_m3','Canal_Riego_m3',
+                    'Canal_Estanque_m3','Perdida_m3','OfertaCanal_total_m3',
+                    'Primera_%','Segunda_%','Perdida_%','Cobertura_%',
+                ]}
+
+                for p, c in enumerate(crops_mejor):
+                    cultivo_p = str(c['nombre']).strip().lower()
+                    if cultivo_p == 'no_plantar':
+                        kpis_p    = _kpis_np_fin.copy()
+                        graficos_p = None
+                        costo_p   = 0.0
+                        ppto_a    = (presupuesto_total - costos_acum) if presupuesto_total else None
+                        ppto_d    = ppto_a
+                    else:
+                        df_s      = dfs_fin[df_fin_idx]; df_fin_idx += 1
+                        kpis_p    = _kpis_de_df_sim(df_s, c, ha_part, frac_cult, dia_siembra, df_prod)
+                        graficos_p = _graficos_b64(df_s, esc, 0)
+                        costo_p   = float(kpis_p.get('Costo_clp', 0) or 0)
+                        ppto_a    = (presupuesto_total - costos_acum) if presupuesto_total else None
+                        ppto_d    = (ppto_a - costo_p)               if ppto_a is not None else None
                     costos_acum += costo_p
 
                     pasos_greedy.append({
@@ -299,10 +354,11 @@ def main():
                         },
                     })
 
-                    df_det = df_s.copy()
-                    df_det.insert(0, 'Particion', p + 1)
-                    df_det.insert(0, 'Escenario', esc)
-                    detalle_filas_p.append(df_det)
+                    if cultivo_p != 'no_plantar':
+                        df_det = df_s.copy()
+                        df_det.insert(0, 'Particion', p + 1)
+                        df_det.insert(0, 'Escenario', esc)
+                        detalle_filas_p.append(df_det)
 
                     fila = {'Escenario': esc, 'Particion': p + 1, 'Cultivo': cultivo_p}
                     fila.update(kpis_p)

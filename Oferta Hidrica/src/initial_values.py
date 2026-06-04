@@ -9,12 +9,12 @@ PARÁMETROS CONFIGURABLES - Edita aquí para cambiar el comportamiento del model
 
 # Número de acciones que tiene el regante
 # Cada acción otorga derecho a usar agua
-NUMERO_ACCIONES = 4 # acciones (parámetro configurable)
+NUMERO_ACCIONES = 10
 
 # Volumen de agua por acción (m³/día)
 # Cantidad máxima que se puede usar por cada acción
 # 1 acción = 1 L/s × 12 horas (turno) × 3600 seg/hora = 43,200 L = 43.2 m³
-VALOR_ACCION = 43.2  # m³/turno por acción
+VALOR_ACCION = 43.2
 
 # Agua máxima disponible sin desmarque
 # = NUMERO_ACCIONES × VALOR_ACCION
@@ -22,11 +22,11 @@ AGUA_MAXIMA_REGANTE = NUMERO_ACCIONES * VALOR_ACCION  # m³/día
 
 # Desmarque Inicial (antes de la fecha de cambio)
 # Porcentaje de derechos superficiales que se pueden usar
-PORCENTAJE_DESMARQUE_INICIAL = 0.15  # % de derechos
+PORCENTAJE_DESMARQUE_INICIAL = 0.15
 
 # Desmarque Final (desde la fecha de cambio en adelante)
 # Porcentaje de derechos superficiales que se pueden usar
-PORCENTAJE_DESMARQUE_FINAL = 0.15  # % de derechos
+PORCENTAJE_DESMARQUE_FINAL = 0.15
 
 # Fecha de cambio de desmarque (mes-día, será aplicada cada año)
 FECHA_DESMARQUE = "09-01"  # 1 de septiembre
@@ -63,22 +63,13 @@ PERDIDA_CONDUCCION = (0.01, 0.04)   # (1%, 4%)
 # ============================== MANTENIMIENTO ==============================
 
 # Duración del mantenimiento (días que permanece cerrado el canal)
-DURACION_MANTENIMIENTO = 7  # días
+DURACION_MANTENIMIENTO = 8
 
 # CALENDARIO DE PARADAS (Días de inicio de cada período de mantenimiento)
 # Especifica en qué días del año comienzan los períodos de mantenimiento
 # Cada parada dura DURACION_MANTENIMIENTO días consecutivos
-# EJEMPLO: [20, 150, 300] = 3 paradas: 
-#   - Parada 1: días 20-33 (14 días)
-#   - Parada 2: días 150-156 (7 días)
-#   - Parada 3: días 300-306 (7 días)
-CALENDARIO_PARADAS = [
-    25,   # Día 25  (25 ene) — inspección post-temporada alta
-    100,  # Día 100 (10 abr) — mantenimiento otoñal de compuertas
-    160,  # Día 160 ( 9 jun) — mantenimiento mayor de invierno
-    250,  # Día 250 ( 7 sep) — limpieza pre-primavera
-    320,  # Día 320 (16 nov) — revisión pre-temporada de riego
-]
+# Fuente: Aviso Asociación de Regantes Marcos — Calendario de cortas invierno 2026
+CALENDARIO_PARADAS = [152, 174, 196, 218, 240]
 
 # ============================== S,OCKS INICIALES ==============================
 
@@ -93,7 +84,7 @@ CALENDARIO_PARADAS = [
 # ============================== TURNOS ==============================
 
 # Frecuencia del turno: cada cuántos días toca turno (TASA)
-FRECUENCIA_TURNO = 9  # días 
+FRECUENCIA_TURNO = 9
 
 # Duración real del turno en días
 DURACION_TURNO = 1  # días (el turno dura 1 día)

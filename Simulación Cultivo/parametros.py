@@ -8,7 +8,7 @@ Modificar aquí los valores para ajustar el escenario.
 # parametros de manejo (hectareas, fraccion cultivada, frecuencia de turno,
 # capacidad y nivel inicial de estanque). Los cultivos se iteran TODOS desde
 # data_cultivos.csv y se cruzan con cada escenario del CalendarioOferta.
-REGANTE_ID = 1   # debe ser un id presente en inputs/regantes.csv
+REGANTE_ID = 1
 
 # ---------- Dia de siembra global ----------
 # Indice 1-based del dia de siembra (offset relativo a DIA_INICIO_SIMULACION).
@@ -36,8 +36,8 @@ DIA_INICIO_SIMULACION = 213
 
 # ---------- Propiedades de suelo (FAO-56) ----------
 # Contenido de humedad volumétrico
-CC  = 0.164   # capacidad de campo (m3/m3)
-PMP = 0.082   # punto de marchitez permanente (m3/m3)
+CC = 0.164
+PMP = 0.082
 
 # Profundidad de la capa superficial evaporante (m)
 Ze_evap = 0.15   # FAO-56 recomienda 0.10 - 0.15 m
@@ -65,12 +65,12 @@ ARCHIVO_OFERTA = '../Oferta Hidrica/data/outputs/CalendarioOferta.csv'
 # Volumen inicial del acuífero disponible para el regante (m3). Se va
 # descontando día a día cada vez que el regante extrae de aquí para
 # complementar la oferta superficial.
-STOCK_SUBTERRANEO_INICIAL_M3 = 200.0
+STOCK_SUBTERRANEO_INICIAL_M3 = 0.0
 
 # Umbral de días consecutivos SIN riego que habilita usar la oferta
 # subterránea para cubrir la demanda. El pozo es independiente del turno
 # del canal: cualquier día puede activarse si se cumple esta condición.
-DIAS_SIN_RIEGO_PARA_SUBTERRANEA =3
+DIAS_SIN_RIEGO_PARA_SUBTERRANEA = 0
 
 # ---------- Retención no lineal de humedad por textura de suelo ----------
 # Factor multiplicativo f(H) = H^ALPHA_SUELO aplicado a la transpiración
@@ -146,4 +146,4 @@ PARTICIONES = 4
 # Los cultivos cuyo costo supere el presupuesto restante quedan excluidos de
 # la selección para esa partición.
 # None o 0 → sin restricción de presupuesto.
-PRESUPUESTO = 2_000_000
+PRESUPUESTO = 4000000

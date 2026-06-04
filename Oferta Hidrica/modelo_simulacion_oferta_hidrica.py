@@ -59,7 +59,7 @@ def main():
     print(f"     VALOR_ACCION = {iv.VALOR_ACCION} m³/acción")
     print(f"     RECARGAS_AGUA_SUBTERRANEA:")
     for fecha_mm_dd, cantidad in iv.RECARGAS_AGUA_SUBTERRANEA:
-        print(f"       → {fecha_mm_dd}: {cantidad} m³")
+        print(f"       -> {fecha_mm_dd}: {cantidad} m3")
 
     # ===== GENERAR CALENDARIOS =====
     print("[INICIO] Generando calendarios con valores iniciales actualizados...")
@@ -187,13 +187,21 @@ def main():
     print(f"{'#'*60}\n")
 
     # ===== ANIMACIÓN =====
+    import sys as _sys
+    _batch = (os.environ.get('NO_ANIMATION') == '1'
+              or not _sys.stdout.isatty()
+              or not _sys.stdin.isatty())
+    if _batch:
+        print("[OK] Animacion omitida (modo batch).")
+        return
+
     print("\n" + "="*60)
-    print("¿Deseas abrir la animación interactiva en el navegador?")
+    print("Deseas abrir la animacion interactiva en el navegador?")
     try:
         respuesta = input("Escribe 'si' o 'no' (por defecto: si): ").strip().lower()
     except (EOFError, KeyboardInterrupt):
-        respuesta = 'si'
-        print("(Sin entrada interactiva, usando valor por defecto: si)")
+        respuesta = 'no'
+        print("(Sin entrada interactiva, omitiendo animacion)")
 
     if respuesta != 'no':
         print("\nIniciando servidor de animación...")

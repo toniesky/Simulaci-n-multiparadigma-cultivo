@@ -1,7 +1,18 @@
 # Modelo de Soporte a la Toma de Decisiones en la Agricultura Basado en Simulación Multiparadigma
 
-> **Proyecto:** Capstone — Simulación Multiparadigma para la Gestión del Agua de Riego 
-> **Paradigmas:** Dinámica de Sistemas (Oferta Hídrica) · Simulación de Eventos Discretos (Demanda de Cultivo) 
+> **Proyecto:** Capstone — Simulación Multiparadigma para la Gestión del Agua de Riego  
+> **Paradigmas:** Dinámica de Sistemas (Oferta Hídrica) · Simulación de Eventos Discretos (Demanda de Cultivo)  
+> **Interfaz:** `app.py` — Editor de parámetros web (Dash) con botones Guardar Todo y Simular Todo
+
+---
+
+## Changelog
+
+### v0.4 — 04 Jun 2026
+- **`app.py`**: Interfaz Dash rediseñada. Dos botones: **Guardar Todo** (escribe `initial_values.py`, `parametros.py`, `regantes.csv`) y **Simular Todo** (abre ventana CMD con ambas simulaciones secuenciales).
+- **Simular Todo**: Al terminar abre automáticamente la animación interactiva de Oferta Hídrica (`localhost:5000`) y el `ReporteParticiones.html` en el navegador predeterminado.
+- **Toggle estanque**: Campo `¿Tiene estanque?` en Datos del Regante — deshabilita capacidad y nivel si no aplica.
+- **`simulacion_cultivo.py`**: `no_plantar` agregado como opción explícita en el pool de cultivos. El algoritmo combinatorio ahora evalúa mezclas parciales (e.g. `[Brócoli, No plantar, No plantar, No plantar]`), permitiendo optimizar el número real de particiones cultivadas dentro del presupuesto.
 
 ---
 
