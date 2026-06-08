@@ -55,6 +55,8 @@ def simular_cultivo(c, df_clima, oferta_canal_m3_diaria, regante, en_parada_diar
     ha_cultivadas     = hectareas * fraccion_cult
     ha_to_mm          = 10.0 * ha_cultivadas
     dias_sin_riego    = 0   # contador de dias consecutivos sin aplicar riego
+    dias_sin_canal    = 0   # solo se reinicia cuando el CANAL entrega agua
+    estanque_ciclo    = False  # True si el estanque ya riegó en este inter-turno
 
     De = min(P.De0, AET)
     Dr = min(P.Dr0, ADT)  # clampear al maximo fisico del cultivo
@@ -150,57 +152,62 @@ def simular_cultivo(c, df_clima, oferta_canal_m3_diaria, regante, en_parada_diar
             nivel_estanque_m3 += recarga
             perdida_m3 += sobrante_canal - recarga
 
-        # 2) Si tras el canal queda demanda Y han pasado >= UMBRAL días sin
-        #    riego, se complementa con ESTANQUE y luego con SUBTERRÁNEA
+        # 2) Si tras el canal queda demanda, se complementa con ESTANQUE y
+        #    luego SUBTERRÁNEA.
+        #    Política del agricultor: tras CUALQUIER riego deben pasar
+        #    `umbral_est` días sin regar antes de volver a usar el estanque.
+        #    `dias_sin_riego` se reinicia con cada aplicación, así que el
+        #    estanque riega como máximo 1 vez cada `umbral_est` días y cubre
+        #    el déficit acumulado durante la espera (no riega todos los días).
         falta_m3 = max(0.0, demanda_neta_m3 - aplicado_m3)
-        if falta_m3 > 0 and dias_sin_riego >= P.DIAS_SIN_RIEGO_PARA_SUBTERRANEA:
-            # 2a) primero el estanque
-            usar_estanque = min(falta_m3, nivel_estanque_m3)
-            nivel_estanque_m3 -= usar_estanque
-            aplicado_m3       += usar_estanque
-            falta_m3          -= usar_estanque
-            # 2b) si aún falta, complementar con pozo
-            if falta_m3 > 0 and stock_sub_m3 > 0:
+        umbral_est = getattr(P, 'DIAS_SIN_RIEGO_PARA_ESTANQUE',
+                             P.DIAS_SIN_RIEGO_PARA_SUBTERRANEA)
+        if (falta_m3 > 0 and dias_sin_riego >= umbral_est
+                and nivel_estanque_m3 > 0):
+            # Días hasta el próximo turno del canal (para calcular cobertura).
+            dias_hasta_turno = 1
+            for _d in range(dia + 1, len(oferta_canal_m3_diaria)):
+                if oferta_canal_m3_diaria[_d] > 0:
+                    dias_hasta_turno = _d - dia
+                    break
+            dias_hasta_turno = max(1, dias_hasta_turno)
+            # Cobertura reducida: a más días hasta el turno, menos se aplica
+            # ahora para preservar el estanque. Parámetro REDUCCION_ESTANQUE_PCT_POR_DIA.
+            reduccion = getattr(P, 'REDUCCION_ESTANQUE_PCT_POR_DIA', 0.0)
+            cobertura = max(0.0, 1.0 - dias_hasta_turno * reduccion / 100.0)
+            # Cap: el estanque cubre como máximo el ET del día (Kcb+Ke)*ETo,
+            # no el Dr acumulado. Así evita descargas grandes en un solo disparo
+            # y distribuye el riego en múltiples triggers (cada umbral_est días).
+            falta_hoy      = min(falta_m3, Etc_pot * ha_to_mm)
+            falta_ajustada = falta_hoy * cobertura
+            cuota_m3 = min(falta_ajustada, nivel_estanque_m3)
+            nivel_estanque_m3 -= cuota_m3
+            aplicado_m3       += cuota_m3
+            falta_m3          = max(0.0, demanda_neta_m3 - aplicado_m3)
+
+        if falta_m3 > 0 and dias_sin_canal >= P.DIAS_SIN_RIEGO_PARA_SUBTERRANEA:
+            if stock_sub_m3 > 0:
                 sub_usado_m3  = min(falta_m3, stock_sub_m3)
                 stock_sub_m3 -= sub_usado_m3
                 aplicado_m3  += sub_usado_m3
 
-        # 3) RIEGO DE EMERGENCIA cuando theta cae muy bajo (fuera de turno).
-        #    Aplica el agua necesaria para llegar al objetivo INMEDIATAMENTE
-        #    (sin racionar por días), usando primero el estanque y luego
-        #    el agua subterránea como respaldo. La urgencia agrológica
-        #    justifica no diferir la aplicación.
-        #    El umbral HUMEDAD_EMERGENCIA_PCT está en humedad volumétrica theta %
-        #    (misma escala del gráfico: PMP=8.2%, CC=16.4%).
-        theta_actual = P.PMP * 100.0 + (P.CC - P.PMP) * 100.0 * ((1.0 - Dr / ADT))
-        umbral_theta = getattr(P, 'HUMEDAD_EMERGENCIA_PCT', 12.0)
-        obj_emerg    = getattr(P, 'HUMEDAD_OBJETIVO_EMERGENCIA_PCT', 50.0)
-        H_pct_emerg_obj = obj_emerg  # obj_emerg ya está en H_pct (% agua util)
-        agua_disp_emerg = nivel_estanque_m3 + stock_sub_m3
-        if theta_actual <= umbral_theta and agua_disp_emerg > 0:
-            Dr_obj_emerg  = ADT * (1.0 - H_pct_emerg_obj / 100.0)
-            agua_total_mm = max(0.0, Dr - Dr_obj_emerg - Pr)
-            if agua_total_mm > 0:
-                cuota_m3 = agua_total_mm * ha_to_mm          # agua completa, sin racionar
-                usar_emerg = min(cuota_m3, agua_disp_emerg)
-                # primero el estanque, luego el subterráneo como respaldo
-                usar_est = min(usar_emerg, nivel_estanque_m3)
-                nivel_estanque_m3 -= usar_est
-                aplicado_m3       += usar_est
-                usar_emerg        -= usar_est
-                if usar_emerg > 0 and stock_sub_m3 > 0:
-                    usar_sub_em    = min(usar_emerg, stock_sub_m3)
-                    stock_sub_m3  -= usar_sub_em
-                    sub_usado_m3  += usar_sub_em
-                    aplicado_m3   += usar_sub_em
-
         deficit_m3 = max(0.0, demanda_neta_m3 - aplicado_m3)
 
-        # Contador de días consecutivos sin aplicar riego
+        # Contadores de días sin riego
         if aplicado_m3 > 0:
             dias_sin_riego = 0
         else:
             dias_sin_riego += 1
+        # dias_sin_canal solo se reinicia cuando el CANAL entrega agua
+        if es_turno and canal_riego_m3 > 0:
+            dias_sin_canal    = 0
+            estanque_ciclo    = False   # nuevo ciclo: habilitar estanque
+        else:
+            dias_sin_canal += 1
+            # Si el canal no llega pero ya pasó un ciclo completo (frecuencia
+            # de turno), habilitar el estanque de nuevo para el próximo ciclo
+            if dias_sin_canal % frecuencia == 0:
+                estanque_ciclo = False
 
         R = aplicado_m3 / ha_to_mm if ha_to_mm > 0 else 0.0   # lámina efectiva (mm)
 
@@ -258,6 +265,12 @@ def simular_cultivo(c, df_clima, oferta_canal_m3_diaria, regante, en_parada_diar
             'Aplicado_m3':        round(aplicado_m3, 3),
             'Estanque_m3':        round(nivel_estanque_m3, 3),
             'Perdida_m3':         round(perdida_m3, 3),
+            # Totales a nivel REGANTE (en partición única coinciden con la fila):
+            # permiten verificar  Oferta = Riego directo + Almacenado + Perdida
+            'Oferta_Canal_Total_m3':    round(oferta_canal_m3, 3),
+            'Canal_Riego_Total_m3':     round(canal_riego_m3, 3),
+            'Canal_Estanque_Total_m3':  round(canal_estanque_m3, 3),
+            'Perdida_Total_m3':         round(perdida_m3, 3),
             'Deficit_m3':         round(deficit_m3, 3),
             'Riego_mm':           round(R, 3),
             'Riego_m3':           round(Riego_m3, 3),
@@ -296,6 +309,7 @@ def simular_multi_particion(crops_list, ha_part, regante, df_clima, oferta_canal
 
     frac_cult     = float(regante.get('fraccion_cultivada', 1.0))
     ha_cultivadas = ha_part * frac_cult
+    frecuencia    = int(regante.get('frecuencia_dias', 9))
     ha_to_mm      = 10.0 * ha_cultivadas          # 1 mm sobre ha_cultivadas → m3
     capacidad_m3  = float(regante['capacidad_estanque_m3'])
     nivel_est_m3  = ini_est
@@ -313,6 +327,8 @@ def simular_multi_particion(crops_list, ha_part, regante, df_clima, oferta_canal
             'Dr': min(P.Dr0, ADT),
             'ADT': ADT, 'AFA': AFA,
             'dias_sin_riego': 0,
+            'dias_sin_canal': 0,       # solo reinicia cuando el canal entrega agua
+            'estanque_ciclo': False,   # True si el estanque ya rió en este inter-turno
             'dias_totales': int(c['L_ini'] + c['L_des'] + c['L_med'] + c['L_fin']),
             'filas': [],
         })
@@ -379,57 +395,70 @@ def simular_multi_particion(crops_list, ha_part, regante, df_clima, oferta_canal
             nivel_est_m3     += recarga
             perdida_portfolio  = sobrante - recarga
 
-        # ── 3) Estanque y subterráneo para cubrir déficit restante ───────────
+        # ── 3) Estanque (racionado) y subterráneo para cubrir déficit restante ─
         aplicado  = list(asignado_canal)
         sub_usado = [0.0] * n
 
-        faltas     = [max(0.0, demandas_m3[i] - aplicado[i]) for i in range(n)]
-        elegibles  = [i for i in range(n)
-                      if dia < estados[i]['dias_totales']
-                      and estados[i]['dias_sin_riego'] >= P.DIAS_SIN_RIEGO_PARA_SUBTERRANEA]
-        falta_eleg = sum(faltas[i] for i in elegibles)
+        umbral_est = getattr(P, 'DIAS_SIN_RIEGO_PARA_ESTANQUE',
+                             P.DIAS_SIN_RIEGO_PARA_SUBTERRANEA)
 
-        if falta_eleg > 0 and nivel_est_m3 > 0:
-            usar_tank = min(falta_eleg, nivel_est_m3)
+        # Política del agricultor: tras CUALQUIER riego (canal o estanque) deben
+        # pasar `umbral_est` días sin regar antes de volver a usar el estanque.
+        # `dias_sin_riego` se reinicia a 0 con cada aplicación, así que el
+        # estanque riega como máximo 1 vez cada `umbral_est` días, cubriendo el
+        # déficit acumulado durante la espera (no riega todos los días).
+        elegibles_est = [i for i in range(n)
+                         if dia < estados[i]['dias_totales']
+                         and estados[i]['dias_sin_riego'] >= umbral_est]
+        # Cap por partición: el estanque cubre como máximo el ET del día
+        # (Kcb+Ke)*ETo*ha, no el Dr acumulado de días anteriores. Esto evita
+        # descargas grandes en un solo trigger y alarga la vida del estanque.
+        faltas_est = [
+            min(
+                max(0.0, demandas_m3[i] - aplicado[i]),
+                (kcb_list[i] + Ke_list[i]) * ETo * ha_to_mm
+            )
+            for i in range(n)
+        ]
+        falta_est_total = sum(faltas_est[i] for i in elegibles_est)
+
+        if falta_est_total > 0 and nivel_est_m3 > 0:
+            # Días hasta el próximo turno del canal (para calcular cobertura).
+            dias_hasta_turno = 1
+            for _d in range(dia + 1, len(oferta_canal_m3)):
+                if oferta_canal_m3[_d] > 0:
+                    dias_hasta_turno = _d - dia
+                    break
+            dias_hasta_turno = max(1, dias_hasta_turno)
+            # Cobertura reducida: a más días hasta el turno, menos se aplica
+            # ahora para preservar el estanque. Parámetro REDUCCION_ESTANQUE_PCT_POR_DIA.
+            reduccion = getattr(P, 'REDUCCION_ESTANQUE_PCT_POR_DIA', 0.0)
+            cobertura = max(0.0, 1.0 - dias_hasta_turno * reduccion / 100.0)
+            falta_ajustada = falta_est_total * cobertura
+            usar_tank = min(falta_ajustada, nivel_est_m3)
             nivel_est_m3 -= usar_tank
-            for i in elegibles:
-                aplicado[i] += usar_tank * (faltas[i] / falta_eleg)
+            for i in elegibles_est:
+                if falta_est_total > 0:
+                    aplicado[i] += usar_tank * (faltas_est[i] / falta_est_total)
 
-        faltas2     = [max(0.0, demandas_m3[i] - aplicado[i]) for i in elegibles]
-        falta_eleg2 = sum(faltas2)
+        elegibles_sub = [i for i in range(n)
+                         if dia < estados[i]['dias_totales']
+                         and estados[i]['dias_sin_canal'] >= P.DIAS_SIN_RIEGO_PARA_SUBTERRANEA]
+        faltas2     = [max(0.0, demandas_m3[i] - aplicado[i]) for i in range(n)]
+        falta_eleg2 = sum(faltas2[i] for i in elegibles_sub)
         if falta_eleg2 > 0 and stock_sub_m3 > 0:
             usar_sub = min(falta_eleg2, stock_sub_m3)
             stock_sub_m3 -= usar_sub
-            for j, i in enumerate(elegibles):
-                add = usar_sub * (faltas2[j] / falta_eleg2)
-                aplicado[i]  += add
-                sub_usado[i] += add
+            for i in elegibles_sub:
+                if falta_eleg2 > 0:
+                    add = usar_sub * (faltas2[i] / falta_eleg2)
+                    aplicado[i]  += add
+                    sub_usado[i] += add
 
-        # ── 4) Riego de emergencia (por partición, agua del estanque/sub compartido) ─
-        for i, c in enumerate(crops_list):
-            s = estados[i]
-            if dia >= s['dias_totales']:
-                continue
-            theta_act = P.PMP * 100.0 + (P.CC - P.PMP) * 100.0 * (1.0 - s['Dr'] / s['ADT'])
-            umbral    = getattr(P, 'HUMEDAD_EMERGENCIA_PCT', 12.0)
-            agua_disp = nivel_est_m3 + stock_sub_m3
-            if theta_act <= umbral and agua_disp > 0:
-                obj_em    = getattr(P, 'HUMEDAD_OBJETIVO_EMERGENCIA_PCT', 50.0)
-                Dr_obj_em = s['ADT'] * (1.0 - obj_em / 100.0)
-                agua_mm   = max(0.0, s['Dr'] - Dr_obj_em - Pr)
-                if agua_mm > 0:
-                    cuota   = min(agua_mm * ha_to_mm, agua_disp)
-                    usar_e  = min(cuota, nivel_est_m3)
-                    nivel_est_m3 -= usar_e
-                    aplicado[i]  += usar_e
-                    cuota -= usar_e
-                    if cuota > 0 and stock_sub_m3 > 0:
-                        usar_se      = min(cuota, stock_sub_m3)
-                        stock_sub_m3 -= usar_se
-                        sub_usado[i] += usar_se
-                        aplicado[i]  += usar_se
-
-        # ── 5) Actualizar estados y registrar ─────────────────────────────────
+        # ── 4) Actualizar estados y registrar ─────────────────────────────────
+        # Numero de particiones ACTIVAS este dia (cultivo aun en curso)
+        n_activas = sum(1 for i in range(n) if dia < estados[i]['dias_totales'])
+        n_rep = max(n_activas, 1)  # divisor para Canal_Estanque y Perdida
         for i, c in enumerate(crops_list):
             s = estados[i]
             if dia >= s['dias_totales']:
@@ -448,13 +477,29 @@ def simular_multi_particion(crops_list, ha_part, regante, df_clima, oferta_canal
             Ep     = Ks * kcb * ETo * f_H
             Etc    = Ep + Es
 
-            s['Dr'] = min(max(s['Dr'] - Pr - R + Etc, 0.0), s['ADT'])
+            # Actualizar Dr — fracción del agua aplicada que drena por debajo
+            # de la zona radicular según textura (FRACCION_DRENAJE), igual que
+            # en simular_cultivo (partición única). El drenaje ocurre a mayor
+            # profundidad que Ze, por lo que no afecta a De (capa superficial).
+            f_drain = getattr(P, 'FRACCION_DRENAJE', 0.0)
+            s['Dr'] = min(max(s['Dr'] - Pr * (1.0 - f_drain)
+                              - R * (1.0 - f_drain) + Etc, 0.0), s['ADT'])
             H       = (1.0 - s['Dr'] / s['ADT']) * 100.0
 
             if aplicado[i] > 0:
                 s['dias_sin_riego'] = 0
             else:
                 s['dias_sin_riego'] += 1
+            # dias_sin_canal solo se reinicia cuando el canal entrega agua directamente
+            if asignado_canal[i] > 0:
+                s['dias_sin_canal']  = 0
+                s['estanque_ciclo']  = False   # nuevo ciclo: habilitar estanque
+            else:
+                s['dias_sin_canal'] += 1
+                # Si el canal no llega pero ya pasó un ciclo completo,
+                # habilitar el estanque de nuevo para el próximo ciclo
+                if s['dias_sin_canal'] % frecuencia == 0:
+                    s['estanque_ciclo'] = False
 
             s['filas'].append({
                 'Cultivo':              c['nombre'],
@@ -469,12 +514,18 @@ def simular_multi_particion(crops_list, ha_part, regante, df_clima, oferta_canal
                 'Demanda_m3':           round(demandas_m3[i],        3),
                 'OfertaCanal_m3':       round(asignado_canal[i],     3),
                 'Canal_Riego_m3':       round(asignado_canal[i],     3),
-                'Canal_Estanque_m3':    round(recarga / max(n, 1),   3),
+                'Canal_Estanque_m3':    round(recarga / n_rep,       3),
                 'Subterranea_Usada_m3': round(sub_usado[i],          3),
                 'Stock_Subterraneo_m3': round(stock_sub_m3,          3),
                 'Aplicado_m3':          round(aplicado[i],           3),
                 'Estanque_m3':          round(nivel_est_m3,          3),
-                'Perdida_m3':           round(perdida_portfolio / max(n, 1), 3),
+                'Perdida_m3':           round(perdida_portfolio / n_rep, 3),
+                # Totales a nivel REGANTE (iguales en todas las particiones):
+                # permiten verificar  Oferta = Riego directo + Almacenado + Perdida
+                'Oferta_Canal_Total_m3':    round(oferta_dia,            3),
+                'Canal_Riego_Total_m3':     round(sum(asignado_canal),   3),
+                'Canal_Estanque_Total_m3':  round(recarga,               3),
+                'Perdida_Total_m3':         round(perdida_portfolio,     3),
                 'Deficit_m3':           round(max(0.0, demandas_m3[i] - aplicado[i]), 3),
                 'Riego_mm':             round(R,                     3),
                 'Riego_m3':             round(aplicado[i],           3),

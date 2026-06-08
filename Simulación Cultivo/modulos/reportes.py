@@ -465,7 +465,14 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
                       f'<div class="gantt-axis">{_ticks}</div>'
                       f'{_filas_g}</div>')
 
-        # ---- Gráficos de simulación diaria de la mejor combinación ----
+        # ---- Gráficos compartidos (almacenados en P1) ----
+        ps_p1       = next((p for p in pasos_esc if p['particion'] == 1), pasos_esc[0])
+        g_canal     = ps_p1.get('grafico_canal')
+        g_cultivos  = ps_p1.get('grafico_cultivos')
+        g_estanque  = ps_p1.get('grafico_estanque')
+        g_sub       = ps_p1.get('grafico_sub')
+
+        # ---- Gráficos por partición (fuente + humedad) ----
         graficos_parts_html = []
         for _ps in pasos_esc:
             if _ps['cultivo'] == 'no_plantar':
@@ -473,20 +480,20 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
             _g = _ps.get('graficos')
             if not _g:
                 continue
-            _hum_b64 = _g['humedad']
-            _cal_b64  = _g.get('calendario') or _g.get('et', '')
-            _pnum    = _ps['particion']
-            _pnm     = _ps['cultivo'].title()
+            _pnum = _ps['particion']
+            _pnm  = _ps['cultivo'].title()
+            _fuente_b64 = _g.get('fuente') or _g.get('calendario', '')
+            _hum_b64    = _g['humedad']
             graficos_parts_html.append(
                 f'<div style="margin-bottom:24px">'
                 f'<p style="font-size:.85rem;font-weight:700;color:#1a3d6e;margin:4px 0">'
                 f'P{_pnum} — {_pnm}</p>'
-                f'<img src="data:image/png;base64,{_hum_b64}"'
+                f'<img src="data:image/png;base64,{_fuente_b64}"'
                 f' style="width:100%;max-width:720px;display:block;margin-bottom:6px"'
-                f' alt="Humedad suelo P{_pnum}">'
-                f'<img src="data:image/png;base64,{_cal_b64}"'
+                f' alt="Agua por fuente P{_pnum}">'
+                f'<img src="data:image/png;base64,{_hum_b64}"'
                 f' style="width:100%;max-width:720px;display:block"'
-                f' alt="Calendario riego P{_pnum}">'
+                f' alt="Humedad suelo P{_pnum}">'
                 f'</div>'
             )
         graficos_html = ''.join(graficos_parts_html)
@@ -495,20 +502,33 @@ def _generar_html_particiones(out_html, regante, n_part, escenarios, pasos_greed
         <div class="section-card">
           <h2>Escenario {esc:+d}</h2>
           <div class="nota">{nota_agua}</div>
-          <h3>Combinación seleccionada</h3>
-          <div class="combinacion">{badges_html}</div>
+
+          <h3>Carta Gantt — Calendario de cultivo por partición</h3>
+          {gantt_html}
+
+          <h3>Rentabilidad por partición</h3>
+          {tabla_rent}
+
+          <h3>Calidad de cosecha por partición</h3>
+          {tabla_calidad}
+
           <h3>Indicadores del portafolio</h3>
           {kpis_html}
+
           <h3>Estado del agua compartida</h3>
           {water_state_html}
           {'<h3>Presupuesto</h3>' + ppto_html if ppto_html else ''}
-          <h3>Calendario de cultivo por partición</h3>
-          {gantt_html}
-          <h3>Calidad de cosecha por partición</h3>
-          {tabla_calidad}
-          <h3>Rentabilidad por partición</h3>
-          {tabla_rent}
+
+          {'<h3>Distribución de Oferta Superficial</h3><img src="data:image/png;base64,' + g_canal + '" style="width:100%;max-width:900px;display:block;margin-bottom:6px" alt="Canal total">' if g_canal else ''}
+
+          {'<h3>Agua aplicada por cultivo</h3><img src="data:image/png;base64,' + g_cultivos + '" style="width:100%;max-width:900px;display:block;margin-bottom:6px" alt="Agua por cultivo">' if g_cultivos else ''}
+
           {'<h3>Simulación diaria por partición</h3>' + graficos_html if graficos_html else ''}
+
+          {'<h3>Nivel del estanque compartido</h3><img src="data:image/png;base64,' + g_estanque + '" style="width:100%;max-width:900px;display:block;margin-bottom:6px" alt="Nivel estanque">' if g_estanque else ''}
+
+          {'<h3>Stock de agua subterránea</h3><img src="data:image/png;base64,' + g_sub + '" style="width:100%;max-width:900px;display:block;margin-bottom:6px" alt="Stock subterráneo">' if g_sub else ''}
+
           <h3>Ranking de combinaciones evaluadas</h3>
           {pasos_html}
         </div>

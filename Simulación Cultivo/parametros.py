@@ -32,12 +32,12 @@ DIR_SALIDA            = 'outputs'
 #   1   -> arranca el 01 de enero del CSV de clima
 #   91  -> arranca aprox. 1 de abril, etc.
 #   213 -> arranca el 01 de agosto
-DIA_INICIO_SIMULACION = 213
+DIA_INICIO_SIMULACION = 32
 
 # ---------- Propiedades de suelo (FAO-56) ----------
 # Contenido de humedad volumétrico
 CC = 0.164
-PMP = 0.082
+PMP = 0.08
 
 # Profundidad de la capa superficial evaporante (m)
 Ze_evap = 0.15   # FAO-56 recomienda 0.10 - 0.15 m
@@ -70,18 +70,45 @@ STOCK_SUBTERRANEO_INICIAL_M3 = 0.0
 # Umbral de días consecutivos SIN riego que habilita usar la oferta
 # subterránea para cubrir la demanda. El pozo es independiente del turno
 # del canal: cualquier día puede activarse si se cumple esta condición.
-DIAS_SIN_RIEGO_PARA_SUBTERRANEA = 0
+DIAS_SIN_RIEGO_PARA_SUBTERRANEA = 9999
+
+# Umbral de días consecutivos SIN REGAR que habilita volver a usar el
+# estanque (política del agricultor: no se riega todos los días). Se cuenta
+# desde CUALQUIER riego — turno de canal o estanque —, ya que cada aplicación
+# reinicia el contador `dias_sin_riego`. Con valor 2, el estanque riega como
+# máximo 1 vez cada 2 días y cubre el déficit acumulado durante la espera.
+# Debe ser <= DIAS_SIN_RIEGO_PARA_SUBTERRANEA (estanque tiene prioridad).
+DIAS_SIN_RIEGO_PARA_ESTANQUE = 2
+
+# Reducción porcentual de la cobertura del estanque por cada día que falta
+# para el próximo turno de canal. Alarga la vida útil del estanque: cuanto
+# más lejos está el próximo turno, menos porcentaje de la demanda se cubre
+# ahora, reservando agua para los días siguientes.
+#   cobertura = max(0, 1 - dias_hasta_turno * REDUCCION / 100)
+# Ejemplos con 5 días hasta el turno:
+#   REDUCCION = 0  → cubre el 100% de la falta (sin ahorro)
+#   REDUCCION = 3  → cubre el 85% de la falta
+#   REDUCCION = 5  → cubre el 75% de la falta
+#   REDUCCION = 10 → cubre el 50% de la falta
+#   REDUCCION = 20 → cubre el 0%  (el estanque no entrega nada ese día)
+REDUCCION_ESTANQUE_PCT_POR_DIA = 5
 
 # ---------- Retención no lineal de humedad por textura de suelo ----------
 # Factor multiplicativo f(H) = H^ALPHA_SUELO aplicado a la transpiración
 # (Ks * Kcb * ETo). H es el % de agua útil disponible normalizado [0,1]
 # que se calcula del déficit radicular Dr. NO afecta a la evaporación Es.
+# NOTA: este factor se aplica JUNTO a Ks (factor FAO-56 estándar), por lo
+# que valores altos de ALPHA producen doble penalización muy agresiva.
 # Valores orientativos por textura:
 #   arenoso:        1.2 - 1.5
 #   franco:         1.5 - 2.0
 #   franco-arcill.: 2.0 - 3.0
 #   arcilloso:      3.0 - 5.0
-ALPHA_SUELO = 3.2
+# Ejemplo de f(H) con H_norm=0.5 (mitad de agua útil disponible):
+#   ALPHA=3.2 → f=0.11  (muy agresivo, doble penalización severa)
+#   ALPHA=1.5 → f=0.35  (suave, comportamiento tipo franco-arenoso)
+#   ALPHA=1.0 → f=0.50  (lineal, equivalente a solo usar Ks)
+ALPHA_SUELO = 1.5
 
 # ---------- Fracción de drenaje por textura de suelo ----------
 # Fracción del agua aplicada (riego + precipitación) que drena inmediatamente
@@ -96,7 +123,7 @@ ALPHA_SUELO = 3.2
 #   franco:         0.10 - 0.20
 #   franco-arcill.: 0.02 - 0.08
 #   arcilloso:      0.00 - 0.02   (drena lento, retiene casi todo)
-FRACCION_DRENAJE = 0.10
+FRACCION_DRENAJE = 0.15
 
 # ---------- Politica de cantidad de riego ----------
 # Cuando se decide regar (turno o respaldo), la cantidad objetivo es la
@@ -115,6 +142,7 @@ H_OBJETIVO_PCT = 20.0
 # ---------- Humedad mínima de seguridad ----------
 # Si la humedad baja de este valor, se fuerza riego hasta al menos este umbral
 HUMEDAD_MINIMA_PCT = 100.0 * PMP + 2.0   # por defecto 2% sobre PMP
+
 
 # ---------- Riego de emergencia desde estanque ----------
 # Si H_pct cae a este umbral o menos (fuera de turno), se aplica desde el
@@ -138,7 +166,7 @@ RIEGO_HASTA_CC = True
 #      de evaluar la siguiente partición.
 # PARTICIONES = 1 mantiene el comportamiento original (todos los cultivos
 # se simulan de forma independiente sobre la superficie total).
-PARTICIONES = 4
+PARTICIONES = 6
 
 # Presupuesto total disponible para costear los cultivos de todas las
 # particiones (pesos CLP). Se distribuye en orden: si la partición 1 cuesta

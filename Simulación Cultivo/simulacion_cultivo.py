@@ -14,8 +14,13 @@ from modulos.funciones import (
     simular_multi_particion,
     _kpis_de_df_sim,
     _graficos_b64,
+    _grafico_canal_b64,
+    _grafico_agua_cultivos_b64,
+    _grafico_estanque_b64,
+    _grafico_sub_b64,
     _generar_html_particiones,
 )
+from modulos.objetos import PALETTE_CULTIVOS
 
 def main():
     base = os.path.dirname(os.path.abspath(__file__))
@@ -364,6 +369,46 @@ def main():
                     fila.update(kpis_p)
                     resumen_filas_p.append(fila)
 
+                # ── Gráficos compartidos (se generan UNA vez por escenario) ───
+                # Colores de cultivo: mismo orden que la Carta Gantt
+                _crop_color_map = {}
+                for _c in crops_mejor_reales:
+                    _nm = str(_c['nombre']).strip().lower()
+                    if _nm not in _crop_color_map:
+                        _crop_color_map[_nm] = PALETTE_CULTIVOS[
+                            len(_crop_color_map) % len(PALETTE_CULTIVOS)]
+                _nombres_real = [str(c['nombre']).strip().lower() for c in crops_mejor_reales]
+                _colores_real = [_crop_color_map[n] for n in _nombres_real]
+
+                # Gráfico canal (único por escenario)
+                _g_canal = _grafico_canal_b64(dfs_fin[0], esc) if dfs_fin else None
+
+                # Gráfico agua por cultivo (único por escenario)
+                _g_cultivos = _grafico_agua_cultivos_b64(
+                    dfs_fin, _nombres_real, _colores_real, esc) if dfs_fin else None
+
+                # Gráfico estanque (si tiene capacidad > 0)
+                _cap_est = float(regante.get('capacidad_estanque_m3', 0) or 0)
+                _g_estanque = (_grafico_estanque_b64(dfs_fin[0], esc, _cap_est)
+                               if dfs_fin and _cap_est > 0 else None)
+
+                # Gráfico subterráneo (si hay stock inicial > 0 o tiene derechos)
+                _tiene_sub = (int(regante.get('tiene_derechos_subterranea', 0) or 0) == 1
+                              or float(regante.get('STOCK_SUBTERRANEO_INICIAL_M3',
+                                       getattr(P, 'STOCK_SUBTERRANEO_INICIAL_M3', 0)) or 0) > 0)
+                _g_sub = (_grafico_sub_b64(dfs_fin[0], esc)
+                          if dfs_fin and _tiene_sub else None)
+
+                # Almacenar en el primer paso del escenario
+                for _ps in pasos_greedy:
+                    if _ps['esc'] == esc and _ps['particion'] == 1:
+                        _ps['grafico_canal']    = _g_canal
+                        _ps['grafico_cultivos'] = _g_cultivos
+                        _ps['grafico_estanque'] = _g_estanque
+                        _ps['grafico_sub']      = _g_sub
+                        _ps['crop_colors']      = _crop_color_map
+                        break
+
         df_resumen_p = pd.DataFrame(resumen_filas_p)
         if detalle_filas_p:
             df_detalle_p = pd.concat(detalle_filas_p, ignore_index=True)
@@ -379,15 +424,7 @@ def main():
         out_html_p = os.path.join(base, P.DIR_SALIDA, 'ReporteParticiones.html')
         _generar_html_particiones(out_html_p, regante, particiones, escenarios, pasos_greedy)
         print(f'[OK] HTML particiones: {out_html_p}')
-        try:
-            import webbrowser
-            from pathlib import Path
-            url = Path(out_html_p).as_uri()
-            opened = webbrowser.open_new(url)
-            if not opened:
-                os.startfile(out_html_p)
-        except Exception as e:
-            print(f'[WARN] No se pudo abrir el HTML automaticamente: {e}')
+        # El reporte lo abre el proceso que lanza este script (bat o app.py)
 
 
 if __name__ == '__main__':

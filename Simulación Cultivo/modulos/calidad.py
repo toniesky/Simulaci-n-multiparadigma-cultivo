@@ -59,9 +59,11 @@ def _calcular_calidad(deficit_m3, aplicado_m3, dias_estres, dias_totales,
     Ky = 1.1 if nombre_cultivo.lower() in cultivos_fruto else 1.0
     R = max(0.0, 1.0 - Ky * S_eff_corr)  # noqa
 
-    # Proporciones base (k=3, θ=0.6; techo 0.4 en pérdida)
+    # Proporciones base
+    # Sigmoide centrado en S_eff_corr=0.75 (pendiente -4.5) → pérdida baja con estrés
+    # moderado y sólo significativa con estrés severo. Techo 0.45 en pérdida.
     primera_base = _math.exp(-1.5 * S_eff_corr)
-    perdida_base = min(0.4, 1.0 / (1.0 + _math.exp(-3.0 * (S_eff_corr - 0.6))))
+    perdida_base = min(0.45, 1.0 / (1.0 + _math.exp(-4.5 * (S_eff_corr - 0.75))))
     segunda_base = max(0.0, 1.0 - primera_base - perdida_base)
 
     # --- Distribución según condición ---
@@ -70,7 +72,6 @@ def _calcular_calidad(deficit_m3, aplicado_m3, dias_estres, dias_totales,
         segunda = segunda_base + 0.3 * perdida_base
         primera = 1.0 - (segunda + perdida)
     else:
-        # Sin doble compresión: las proporciones base ya suman 1.
         # La pérdida se ajusta solo con p_perdida_extra y cobertura.
         perdida = min(1.0, perdida_base + p_perdida_extra)
         primera = primera_base

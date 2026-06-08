@@ -9,7 +9,7 @@ PARÁMETROS CONFIGURABLES - Edita aquí para cambiar el comportamiento del model
 
 # Número de acciones que tiene el regante
 # Cada acción otorga derecho a usar agua
-NUMERO_ACCIONES = 10
+NUMERO_ACCIONES = 20
 
 # Volumen de agua por acción (m³/día)
 # Cantidad máxima que se puede usar por cada acción
@@ -45,8 +45,7 @@ SALTO_DESMARQUE = 0.025
 # Cada recarga se suma a la oferta total SOLO en el día de la recarga
 # EJEMPLO: 20 m³ el 1-enero y 30 m³ el 1-julio = 50 m³ recargados en el año
 RECARGAS_AGUA_SUBTERRANEA = [
-    ("01-01", 20.0),   # Recarga inicial: 20 m³ el 1 de enero
-    ("07-01", 10.0),   
+   
 ]
 
 # ============================== PÉRDIDAS ==============================
@@ -63,7 +62,7 @@ PERDIDA_CONDUCCION = (0.01, 0.04)   # (1%, 4%)
 # ============================== MANTENIMIENTO ==============================
 
 # Duración del mantenimiento (días que permanece cerrado el canal)
-DURACION_MANTENIMIENTO = 8
+DURACION_MANTENIMIENTO = 7
 
 # CALENDARIO DE PARADAS (Días de inicio de cada período de mantenimiento)
 # Especifica en qué días del año comienzan los períodos de mantenimiento
@@ -92,7 +91,7 @@ DURACION_TURNO = 1  # días (el turno dura 1 día)
 # ============================== TIEMPO DE SIMULACIÓN ==============================
 
 # Período total de simulación (días)
-TIEMPO_TOTAL = 365  # días (1 año)
+TIEMPO_TOTAL = 400  # días (1 año)
 
 # Paso de integración numérica (días)
 PASO_SIMULACION = 1  # día

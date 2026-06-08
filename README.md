@@ -8,6 +8,24 @@
 
 ## Changelog
 
+### v0.5 — 08 Jun 2026
+
+#### Correcciones de bugs en simulación (`modulos/simulacion.py`)
+- **Bug drenaje profundo (multi-partición):** `simular_multi_particion` ignoraba `FRACCION_DRENAJE` al actualizar `Dr`, contando el 100% del riego como efectivo en lugar del 85%. Ahora es consistente con `simular_cultivo`.
+- **Bug eje X gráfico cultivos (`modulos/graficos.py`):** `_grafico_agua_cultivos_b64` usaba los días del primer DataFrame como referencia, recortando el eje al cultivo más corto. Ahora usa la unión de días de todas las particiones.
+
+#### Nueva política del estanque (`modulos/simulacion.py`, `parametros.py`)
+- **Política del agricultor — espera entre riegos:** `DIAS_SIN_RIEGO_PARA_ESTANQUE` ahora compara contra `dias_sin_riego` (tiempo desde cualquier riego) en vez de `dias_sin_canal`. El estanque riega como máximo 1 vez cada N días y cubre el déficit acumulado, sin regar diariamente.
+- **Cap por ET diario:** la entrega del estanque se limita al consumo real del día `(Kcb + Ke) × ETo × ha`, evitando descargas grandes por déficit acumulado de días anteriores.
+- **Nuevo parámetro `REDUCCION_ESTANQUE_PCT_POR_DIA`:** reduce la cobertura del estanque en función de los días que faltan para el próximo turno (`cobertura = max(0, 1 − días_hasta_turno × REDUCCION / 100`). Alarga la vida útil del estanque.
+- Ambos cambios aplicados de forma consistente en `simular_cultivo` y `simular_multi_particion`.
+
+#### Reorganización del reporte HTML (`modulos/reportes.py`, `modulos/graficos.py`)
+- Gráfico "Distribución de Oferta Superficial" es ahora uno solo compartido (no repetido por partición).
+- Nuevo gráfico "Agua aplicada por cultivo" con barras apiladas coloreadas por la paleta de la Carta Gantt.
+- Nuevo orden de secciones por escenario: Carta Gantt → Rentabilidad → Calidad → KPIs → Estado agua → Oferta superficial → Agua por cultivo → Simulación diaria por partición → Estanque → Subterráneo → Ranking.
+- Gráficos de estanque y subterráneo son condicionales (solo aparecen si aplican).
+
 ### v0.4 — 04 Jun 2026
 - **`app.py`**: Interfaz Dash rediseñada. Dos botones: **Guardar Todo** (escribe `initial_values.py`, `parametros.py`, `regantes.csv`) y **Simular Todo** (abre ventana CMD con ambas simulaciones secuenciales).
 - **Simular Todo**: Al terminar abre automáticamente la animación interactiva de Oferta Hídrica (`localhost:5000`) y el `ReporteParticiones.html` en el navegador predeterminado.
