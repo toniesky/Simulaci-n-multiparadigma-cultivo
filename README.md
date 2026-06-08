@@ -572,18 +572,53 @@ donde $p_1$, $p_2$, $p_{loss}$ son las proporciones de Primera, Segunda y Pérdi
 
 En cada **evento de riego** el proceso de despacho satisface la demanda neta del cultivo ($D_N = \max(0,\; ET_r - PP)$, donde $ET_r$ es la evapotranspiración real bajo estrés) asignando los **recursos hídricos disponibles** en el siguiente orden de prioridad:
 
-```
-1. CANAL (eventos de turno con flujo activo):
- a. Riego directo: min(OfertaCanal, DemandaNeta) → aplicado en el evento actual
- b. Almacenamiento: excedente del canal → estanque predial (hasta capacidad máxima)
- c. Pérdida: excedente que supera capacidad del estanque
+```mermaid
+flowchart TD
+    A([Inicio del día]) --> B{¿Es turno\nde canal?}
 
-2. ESTANQUE (cualquier evento, si nivel > 0):
- - Extracción para completar la demanda neta no cubierta por el canal
+    B -- Sí --> C[Canal cubre min\nOferta, Demanda]
+    C --> D{¿Sobrante\n> 0?}
+    D -- Sí --> E[Almacenar en estanque\nhasta cap. máxima]
+    D -- No --> F
+    E --> F{¿Demanda\naún insatisfecha?}
 
-3. SUBTERRÁNEO (si han transcurrido ≥ DIAS_SIN_RIEGO_PARA_SUBTERRANEA sin riego):
- - Extracción del stock subterráneo para cubrir el déficit hídrico residual
+    B -- No --> F
+
+    F -- Sí --> G{¿dias_sin_riego\n≥ umbral_est?}
+    G -- No --> K
+    G -- Sí --> H[Estanque entrega\nmín falta·cobertura,\nET_día, nivel]
+    H --> I["cobertura = max(0,\n1 − días_turno × REDUCCION/100)"]
+    I --> K
+
+    K{¿Déficit\nresidual > 0?}
+    K -- No --> Z
+    K -- Sí --> L{¿dias_sin_riego\n≥ umbral_sub?}
+    L -- No --> Z
+    L -- Sí --> M[Subterráneo cubre\ndeficit residual]
+    M --> Z([Registrar día])
 ```
+
+**Reglas de cada fuente:**
+
+| Prioridad | Fuente | Condición de activación | Cantidad entregada |
+|---|---|---|---|
+| 1 | **Canal** | Día de turno (oferta > 0) | `min(oferta, demanda)` → riego directo; excedente → estanque o pérdida |
+| 2 | **Estanque** | `dias_sin_riego ≥ DIAS_SIN_RIEGO_PARA_ESTANQUE` | `min(falta · cobertura, ET_día · ha, nivel_estanque)` |
+| 3 | **Subterráneo** | `dias_sin_riego ≥ DIAS_SIN_RIEGO_PARA_SUBTERRANEA` | `min(déficit_residual, stock_sub)` |
+
+**Política del estanque — vida útil controlada:**
+
+El estanque es la fuente de respaldo primaria entre turnos de canal. Para evitar que vacie de golpe el estanque cubriendo déficits acumulados de días anteriores, se aplican dos restricciones simultáneas:
+
+1. **Espera mínima (`DIAS_SIN_RIEGO_PARA_ESTANQUE`):** tras cualquier riego (canal o estanque), deben transcurrir al menos N días sin regar antes de que el estanque vuelva a entregar agua. Así riega como máximo 1 vez cada N días.
+
+2. **Cobertura reducida por días hasta el turno (`REDUCCION_ESTANQUE_PCT_POR_DIA`):** cuanto más lejos está el próximo turno de canal, menor porcentaje de la falta se cubre ahora, preservando agua para los días siguientes:
+
+$$
+\text{cobertura} = \max\!\left(0,\; 1 - d_{\text{turno}} \times \frac{\texttt{REDUCCION}}{100}\right)
+$$
+
+3. **Cap por ET diario:** la entrega máxima en un solo disparo es el consumo real del día $(\text{Kcb} + \text{Ke}) \times \text{ETo} \times ha$, no el déficit acumulado.
 
 El **stock del estanque** se actualiza en cada evento de acuerdo con la ecuación de balance:
 
@@ -591,11 +626,9 @@ $$
 N_{est}(t) = N_{est}(t-1) + A(t) - E(t)
 $$
 
-donde $A(t)$ = volumen almacenado y $E(t)$ = volumen extraído del estanque ese día.
+donde $A(t)$ = volumen almacenado desde excedente de canal y $E(t)$ = volumen extraído ese día, con $N_{est} \in [0,\, C_{est}]$.
 
-con $N_{est} \in [0,\, C_{est}]$, donde $C_{est}$ es la capacidad máxima del **recurso de almacenamiento** predial, configurada en `regantes.csv`.
-
-Las salidas de este bloque registran el estado de la **asignación de recursos** en las columnas `Canal_Riego_m3`, `Canal_Estanque_m3`, `Aplicado_m3`, `Subterranea_Usada_m3` y `Perdida_m3` del CSV de simulación diaria.
+Las salidas de este bloque se registran en `Canal_Riego_m3`, `Canal_Estanque_m3`, `Aplicado_m3`, `Subterranea_Usada_m3`, `Estanque_m3` y `Perdida_m3` del CSV de simulación diaria.
 
 ### 4.4 Restricciones estacionales de siembra
 
