@@ -457,6 +457,59 @@ El parámetro `FRACCION_DRENAJE` en `parametros.py` es **calibrable con sensor v
 
 Los parámetros de suelo (`CC`, `PMP`, `Ze_evap`, `AET`, `AFE`) se definen en `parametros.py`. Las condiciones iniciales de déficit (`De0`, `Dr0`) se fijan en cero (suelo a capacidad de campo al inicio de la siembra).
 
+#### Ejecución día a día — flujo completo del balance diario
+
+El modelo avanza un día a la vez. Cada día ejecuta la siguiente secuencia sobre **dos capas de suelo independientes**: la capa evaporante superficial ($Z_e$) y la zona radicular ($Z_r$).
+
+```mermaid
+flowchart TD
+    A([Inicio del día t]) --> B["Clima: ETo, Pr, u2, HRmin"]
+    B --> C["Coeficientes fenológicos\nKcb(t) = interpolación ini→des→med→fin\nKcmax(t) = f(u2, HRmin, h)"]
+    C --> D["Coef. evaporación superficial\nKr = f(De t-1, AFE, AET)\nKe = min(Kr·(Kcmax−Kcb), few·Kcmax)"]
+    D --> E["Demanda de riego\nDn = max(0, Dr(t−1) − Dr_obj − Pr) × ha"]
+    E --> F{"¿Turno\nde canal?"}
+    F -- Sí --> G["Canal: min(oferta, Dn)\nSobrante → estanque o pérdida"]
+    F -- No --> H
+    G --> H{"¿Falta\n> 0 y dias_sin_riego\n≥ umbral?"}
+    H -- Sí --> I["Estanque: min(falta·cobertura,\nET_día·ha, nivel)"]
+    H -- No --> J
+    I --> J{"¿Déficit\nresidual > 0?"}
+    J -- Sí --> K["Subterráneo: min(déficit, stock_sub)"]
+    J -- No --> L
+    K --> L["Estrés hídrico\nKs = f(Dr t-1, AFA, ADT)\nH_norm = 1 − Dr/ADT\nf(H) = H_norm^α"]
+    L --> M["ETc real\nEp = Ks·Kcb·ETo·f(H)\nEs = Ke·ETo\nETc = Ep + Es"]
+    M --> N["Actualizar De(t)\nDe = De(t−1) − Pr − R + Es  ∈ [0, AET]"]
+    M --> O["Actualizar Dr(t)\nDr = Dr(t−1) − Pr·(1−fd) − R·(1−fd) + ETc  ∈ [0, ADT]"]
+    N --> P(["Registrar: H_pct, Theta_vol,\nAplicado_m3, Deficit_m3, …"])
+    O --> P
+```
+
+**Resumen de las ecuaciones implementadas cada día:**
+
+| Paso | Variable calculada | Ecuación |
+|---|---|---|
+| 1 | $K_{cb}(t)$ | Interpolación lineal por fase fenológica |
+| 2 | $K_{c,max}(t)$ | $1.2 + [0.04(u_2-2) - 0.004(HR_{min}-45)](h/3)^{0.3}$ |
+| 3 | $K_r$ | $1$ si $D_e \le AFE$; $(AET - D_e)/(AET - AFE)$ si no |
+| 4 | $K_e$ | $\min(K_r(K_{c,max}-K_{cb}),\; f_{ew}\cdot K_{c,max})$ |
+| 5 | Demanda $D_N$ | $\max(0,\; D_r(t-1) - D_{r,obj} - P_r) \times ha\_to\_mm$ |
+| 6 | Despacho agua | Canal → Estanque → Subterráneo (por prioridad) |
+| 7 | $K_s$ | $1$ si $D_r \le AFA$; $(ADT - D_r)/(ADT - AFA)$ si no |
+| 8 | $f(H)$ | $H_{norm}^{\alpha}$, con $H_{norm} = 1 - D_r/ADT$ |
+| 9 | $ET_c$ | $K_s \cdot K_{cb} \cdot ETo \cdot f(H) + K_e \cdot ETo$ |
+| 10 | $D_e(t)$ | $\text{clip}(D_e(t-1) - P_r - R + E_s,\; 0, AET)$ |
+| 11 | $D_r(t)$ | $\text{clip}(D_r(t-1) - P_r(1-f_d) - R(1-f_d) + ET_c,\; 0, ADT)$ |
+
+**Variables de estado que persisten día a día:**
+
+| Variable | Significado | Se reinicia cuando… |
+|---|---|---|
+| $D_e(t)$ | Déficit capa evaporante (mm) | Nunca (evolución continua) |
+| $D_r(t)$ | Déficit zona radicular (mm) | Nunca |
+| `dias_sin_riego` | Días desde cualquier riego | `Aplicado_m3 > 0` |
+| `dias_sin_canal` | Días desde último turno de canal | Canal entrega agua |
+| `nivel_estanque` | Nivel del estanque (m³) | Nunca (balance acumulado) |
+
 ### 4.2 Distribución de calidad y respuesta al estrés hídrico acumulado
 
 #### Base conceptual: relación rendimiento–déficit hídrico en la literatura FAO
