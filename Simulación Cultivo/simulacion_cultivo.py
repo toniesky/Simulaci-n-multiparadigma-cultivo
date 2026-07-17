@@ -132,8 +132,12 @@ def main():
         resumen_filas_p = []
         detalle_filas_p = []
         dia_siembra     = int(P.DIA_SIEMBRA)
+        # Clima cíclico: reordena el año completo para iniciar en el día de
+        # siembra y envolver tras el 31-dic (un registro por cada día del año).
+        _n_clima_sim = len(df_clima_full)
+        _ini_clima_sim = (P.DIA_INICIO_SIMULACION - 1) + (dia_siembra - 1)
         df_clima_sim    = df_clima_full.iloc[
-            (P.DIA_INICIO_SIMULACION - 1) + (dia_siembra - 1):
+            [(_ini_clima_sim + _d) % _n_clima_sim for _d in range(_n_clima_sim)]
         ].reset_index(drop=True)
 
         _ppto_cfg = getattr(P, 'PRESUPUESTO', None)
@@ -141,6 +145,9 @@ def main():
         if presupuesto_total:
             print(f'[INFO] Presupuesto total: $ {presupuesto_total:,.0f} CLP'
                   f' (se distribuye entre las {particiones} particiones)')
+
+        print('[INFO] Ranking por score = margen × (calidad compuesta / 100), '
+              'calidad = 1ª×0.6 + 2ª×0.4 (3ª sin valor; "no plantar" no cuenta)')
 
         from itertools import combinations_with_replacement as _cwr
         import numpy as np
@@ -179,7 +186,8 @@ def main():
                     combos_evaluadas.append({
                         'combo_idx': combo_idx,
                         'cultivos': ['no_plantar'] * particiones,
-                        'score': 0.0, 'costo_total': 0.0,
+                        'score': 0.0, 'margen': 0.0, 'calidad_prom': 0.0,
+                        'costo_total': 0.0,
                         'excede_presupuesto': False, 'kpis_list': None,
                     })
                     continue
@@ -196,9 +204,10 @@ def main():
                     crops_reales, ha_part_real, regante, df_clima_sim, oferta, en_par,
                     recarga_sub_diaria=recarga_sub)
 
-                total_score = 0.0
-                total_costo = 0.0
-                kpis_list   = []
+                total_margen = 0.0
+                total_costo  = 0.0
+                kpis_list    = []
+                cal_reales   = []   # índice de calidad compuesto de particiones reales
                 df_idx = 0
                 for i, c in enumerate(crops_combo):
                     if str(c['nombre']).strip().lower() == 'no_plantar':
@@ -212,24 +221,38 @@ def main():
                                               dia_siembra, df_prod)
                         m = kk.get('Margen_real_clp')
                         if m is not None and not (isinstance(m, float) and pd.isna(m)):
-                            total_score += float(m)
+                            total_margen += float(m)
                         total_costo += float(kk.get('Costo_clp', 0) or 0)
+                        # Índice de calidad compuesto: 1ª pesa 0.6, 2ª pesa 0.4,
+                        # 3ª (pérdida) no aporta valor.
+                        cal_comp = (float(kk.get('Primera_%') or 0) * 0.6
+                                    + float(kk.get('Segunda_%') or 0) * 0.4)
+                        cal_reales.append(cal_comp)
                         kpis_list.append(kk)
 
                 excede = (presupuesto_total is not None
                           and total_costo > presupuesto_total + 0.01)
 
+                # Calidad compuesta promedio (simple) entre particiones con cultivo real
+                calidad_prom = (sum(cal_reales) / len(cal_reales)) if cal_reales else 0.0
+
+                # Score de ranking: margen ponderado por la calidad compuesta promedio
+                total_score = total_margen * (calidad_prom / 100.0)
+
                 nombres = '+'.join(str(c['nombre']).strip() for c in crops_combo)
                 ppto_tag = ' [EXCEDE ppto]' if excede else ''
                 mejor_tag = ' <-- MEJOR' if (not excede and total_score > mejor_score) else ''
                 print(f'    {n_eval:>4}/{n_total}  {nombres:<40}'
-                      f'  score={total_score:>12,.0f}  costo=${total_costo:>10,.0f}'
+                      f'  score={total_score:>12,.0f}  margen=${total_margen:>10,.0f}'
+                      f'  calC={calidad_prom:>4.0f}%  costo=${total_costo:>10,.0f}'
                       f'{ppto_tag}{mejor_tag}')
 
                 combos_evaluadas.append({
                     'combo_idx':          combo_idx,
                     'cultivos':           [str(c['nombre']).strip().lower() for c in crops_combo],
                     'score':              total_score,
+                    'margen':             total_margen,
+                    'calidad_prom':       calidad_prom,
                     'costo_total':        total_costo,
                     'excede_presupuesto': excede,
                     'kpis_list':          kpis_list,
@@ -244,6 +267,8 @@ def main():
                 'combo_idx':          None,
                 'cultivos':           ['no_plantar'] * particiones,
                 'score':              0.0,
+                'margen':             0.0,
+                'calidad_prom':       0.0,
                 'costo_total':        0.0,
                 'excede_presupuesto': False,
                 'kpis_list':          None,
@@ -408,6 +433,37 @@ def main():
                         _ps['grafico_sub']      = _g_sub
                         _ps['crop_colors']      = _crop_color_map
                         break
+
+        # ── Cache para el reporte interactivo (no altera ningún cálculo) ──
+        # Guarda pasos_greedy + el contexto necesario para re-simular una
+        # combinación arbitraria bajo demanda desde la app interactiva.
+        try:
+            import pickle
+            _cult_by_name = {}
+            for _r in cult_rows:
+                _cult_by_name[str(_r['nombre']).strip().lower()] = _r
+            contexto = {
+                'base':                base,
+                'regante':             regante,
+                'df_clima_sim':        df_clima_sim,
+                'dia_siembra':         dia_siembra,
+                'ha_part':             ha_part,
+                'frac_cult':           frac_cult,
+                'df_prod':             df_prod,
+                'cult_by_name':        _cult_by_name,
+                'particiones':         particiones,
+                'presupuesto_total':   presupuesto_total,
+                'escenarios':          list(escenarios),
+                'cultivos_disponibles': [str(r['nombre']).strip().lower()
+                                         for r in cult_rows
+                                         if str(r['nombre']).strip().lower() != 'no_plantar'],
+            }
+            _cache_path = os.path.join(base, P.DIR_SALIDA, '_cache_simulacion.pkl')
+            with open(_cache_path, 'wb') as _fh:
+                pickle.dump({'pasos_greedy': pasos_greedy, 'contexto': contexto}, _fh)
+            print(f'[OK] Cache interactivo: {_cache_path}')
+        except Exception as _e:
+            print(f'[WARN] No se pudo guardar cache interactivo: {_e}')
 
         df_resumen_p = pd.DataFrame(resumen_filas_p)
         if detalle_filas_p:

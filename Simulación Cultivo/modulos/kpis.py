@@ -56,7 +56,14 @@ def _simular_combinacion(base, regante, c, df_clima_full, escenario, df_prod=Non
     fraccion_cult = float(regante.get('fraccion_cultivada', 1.0))
     dias_totales  = int(c['L_ini'] + c['L_des'] + c['L_med'] + c['L_fin'])
 
-    df_clima = df_clima_full.iloc[(P.DIA_INICIO_SIMULACION - 1) + (dia_siembra - 1):].reset_index(drop=True)
+    # Clima cíclico: reordena el año completo para que comience en el día de
+    # siembra y continúe envolviendo (tras el 31-dic vuelve al 1-ene), dado que
+    # hay un registro por cada día del año.
+    _n_clima = len(df_clima_full)
+    _ini_clima = (P.DIA_INICIO_SIMULACION - 1) + (dia_siembra - 1)
+    df_clima = df_clima_full.iloc[
+        [(_ini_clima + _d) % _n_clima for _d in range(_n_clima)]
+    ].reset_index(drop=True)
     oferta_canal_m3, en_parada = cargar_oferta_superficial_m3(
         base, dias_totales, dia_siembra, escenario)
     df_sim, ADT, AFA = simular_cultivo(c, df_clima, oferta_canal_m3, regante, en_parada,

@@ -1,19 +1,40 @@
 """Balance hídrico diario: oferta superficial y subterránea."""
 
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
+
+
+def fecha_cambio_desmarque(iv):
+    """
+    Fecha ÚNICA de cambio de desmarque: el primer FECHA_DESMARQUE (mes-día)
+    que ocurre en o después de FECHA_INICIO.
+
+    El desmarque cambia UNA sola vez y luego se mantiene (continuidad), sin
+    reiniciarse al cruzar el año. Antes de esta fecha se aplica el desmarque
+    inicial; desde esta fecha en adelante, el desmarque final.
+    """
+    inicio = datetime.strptime(iv.FECHA_INICIO, "%Y-%m-%d")
+    cambio = datetime.strptime(f"{inicio.year}-{iv.FECHA_DESMARQUE}", "%Y-%m-%d")
+    if cambio < inicio:
+        # Si el cambio de ese año ya pasó al iniciar, se usa el del próximo año.
+        cambio = datetime.strptime(f"{inicio.year + 1}-{iv.FECHA_DESMARQUE}", "%Y-%m-%d")
+    return cambio
 
 
 def get_porcentaje_desmarque(fecha_str, iv, desmarque_override=None):
     """
-    Porcentaje de desmarque según la fecha (cambio dinámico).
+    Porcentaje de desmarque según la fecha (cambio único con continuidad).
 
-    Antes de FECHA_DESMARQUE → PORCENTAJE_DESMARQUE_INICIAL
-    Desde FECHA_DESMARQUE   → desmarque_override o PORCENTAJE_DESMARQUE_FINAL
+    Antes de fecha_cambio_desmarque → PORCENTAJE_DESMARQUE_INICIAL
+    Desde fecha_cambio_desmarque    → desmarque_override o PORCENTAJE_DESMARQUE_FINAL
+
+    El cambio ocurre una sola vez (primer FECHA_DESMARQUE desde el inicio) y se
+    mantiene indefinidamente, evitando que al cambiar de año se vuelva al
+    desmarque anterior.
     """
     fecha = datetime.strptime(fecha_str, "%Y-%m-%d")
-    fecha_cambio = datetime.strptime(f"{fecha.year}-{iv.FECHA_DESMARQUE}", "%Y-%m-%d")
+    fecha_cambio = fecha_cambio_desmarque(iv)
     if fecha < fecha_cambio:
         return iv.PORCENTAJE_DESMARQUE_INICIAL
     return desmarque_override if desmarque_override is not None else iv.PORCENTAJE_DESMARQUE_FINAL
@@ -89,6 +110,24 @@ def simular(calendario, iv, desmarque_override=None, numero_escenario=None):
             PorcentajeDesmarque, RecargaSubterranea [, Escenario]
     """
     resultados = calendario.copy()
+
+    # --- Límite de simulación: un único ciclo de desmarque ---
+    # El desmarque estimado sólo es válido hasta el próximo cambio (el
+    # septiembre siguiente). Más allá se requeriría una nueva predicción del
+    # desmarque, por lo que no es posible simular ese período con la
+    # información disponible.
+    fecha_inicio = datetime.strptime(iv.FECHA_INICIO, "%Y-%m-%d")
+    fecha_fin = fecha_inicio + timedelta(days=iv.TIEMPO_TOTAL - 1)
+    cambio = fecha_cambio_desmarque(iv)
+    fecha_limite = cambio.replace(year=cambio.year + 1)  # próximo FECHA_DESMARQUE
+    if fecha_fin >= fecha_limite:
+        dias_max = (fecha_limite - fecha_inicio).days
+        raise ValueError(
+            f"El horizonte de simulación termina el {fecha_fin.date()} y excede el "
+            f"próximo cambio de desmarque ({fecha_limite.date()}). No es posible "
+            f"simular más allá de un ciclo de desmarque: reduzca TIEMPO_TOTAL a un "
+            f"máximo de {dias_max} días."
+        )
 
     os_list, pcond_list, pfilt_list, ptot_list, dpc_list, stk_list = [], [], [], [], [], []
     for dia in range(1, iv.TIEMPO_TOTAL + 1):

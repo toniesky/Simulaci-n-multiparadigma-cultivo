@@ -214,6 +214,12 @@ La estimación precisa del desmarque final debería provenir de un **modelo de r
 
 En la versión actual del modelo, el regante ingresa su mejor estimación como `PORCENTAJE_DESMARQUE_FINAL`, y el análisis de escenarios (§3.2) permite explorar el riesgo ante desvíos respecto de esa estimación.
 
+#### Continuidad del desmarque y horizonte de simulación
+
+El cambio de desmarque ocurre **una sola vez**: en el primer `FECHA_DESMARQUE` (ej. `09-01`, 1 de septiembre) posterior a `FECHA_INICIO`. Antes de esa fecha rige el desmarque inicial; desde esa fecha en adelante, el desmarque final, **sin reiniciarse al cruzar el año**. Esto garantiza la continuidad del valor durante toda la temporada (evita que en enero–agosto del año siguiente se vuelva al desmarque anterior).
+
+Como corolario, el horizonte de simulación **no puede extenderse más allá del siguiente** `FECHA_DESMARQUE` (un año después del cambio), ya que ese nuevo período requeriría una estimación de desmarque distinta. Si `FECHA_INICIO + TIEMPO_TOTAL` supera ese límite, el modelo detiene la ejecución con un error que indica el máximo de días admisible.
+
 ### 3.2 Generación de escenarios de desmarque
 
 Dado que el desmarque final es incierto, el modelo genera **E escenarios** que cubren un rango de posibles realizaciones alrededor de la estimación central del regante, variando en pasos de `SALTO_DESMARQUE`:
@@ -456,6 +462,8 @@ Solo la fracción $(1-f_{drain})$ del agua aplicada (riego $R$ y precipitación 
 El parámetro `FRACCION_DRENAJE` en `parametros.py` es **calibrable con sensor volumétrico**: se mide $\theta$ antes y ~24 h después de un riego de volumen conocido (sin planta activa para eliminar la transpiración), y se ajusta $f_{drain}$ hasta que el modelo reproduce el $\theta$ final observado.
 
 Los parámetros de suelo (`CC`, `PMP`, `Ze_evap`, `AET`, `AFE`) se definen en `parametros.py`. Las condiciones iniciales de déficit (`De0`, `Dr0`) se fijan en cero (suelo a capacidad de campo al inicio de la siembra).
+
+> **Serie climática cíclica.** El clima se provee como una serie de un año, con un registro por cada día (`datos_clima_365dias.csv`). La simulación la recorre de forma **cíclica**: parte del día de siembra (`DIA_INICIO_SIMULACION + DIA_SIEMBRA`) y, si el ciclo del cultivo se extiende más allá del 31 de diciembre, continúa desde el 1 de enero. De este modo, un ciclo de cualquier duración siempre dispone de clima diario real sin repetir artificialmente el último día del año.
 
 #### Ejecución día a día — flujo completo del balance diario
 

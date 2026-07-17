@@ -64,7 +64,7 @@ def simular_cultivo(c, df_clima, oferta_canal_m3_diaria, regante, en_parada_diar
     filas = []
     for dia in range(dias_totales):
         dia_n = dia + 1   # día 1-indexado para el turno
-        idx = min(dia, len(df_clima) - 1)
+        idx = dia % len(df_clima)   # clima cíclico: envuelve al terminar el año
         clima  = df_clima.iloc[idx]
         ETo    = float(clima['[Prom] mm Evapotranspiración'])
         Pr     = float(clima['[Prom] mm Precipitación'])
