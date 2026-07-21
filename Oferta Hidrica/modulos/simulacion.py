@@ -81,11 +81,12 @@ def calcular_agua_dia(dia, calendario, iv, desmarque_override=None, caudal_maxim
     if apertura == 1 and dia_en_turno in (1, iv.FRECUENCIA_TURNO):
         # Caudal bruto en L/s → volumen en m³ para el turno de HORAS_TURNO horas
         horas       = getattr(iv, 'HORAS_TURNO', 12)
+        factor_tec  = getattr(iv, 'FACTOR_TECNIFICACION', 1.0)   # eficiencia método riego
         bruto_ls    = iv.NUMERO_ACCIONES * desmarque_pct          # L/s
         efectivo_ls = (min(bruto_ls, caudal_maximo_ls)
                        if caudal_maximo_ls is not None else bruto_ls)
-        oferta_sup_bruta = bruto_ls    * horas * 3600 / 1000      # m³
-        oferta_sup_neta  = efectivo_ls * horas * 3600 / 1000      # m³
+        oferta_sup_bruta = bruto_ls    * horas * 3600 / 1000      # m³ (sin tecnificación)
+        oferta_sup_neta  = efectivo_ls * horas * 3600 / 1000 * factor_tec  # m³ efectivos
 
     perdida_total = oferta_sup_bruta - oferta_sup_neta
     return oferta_sup_neta, oferta_sup_bruta, perdida_total, recarga_hoy, desmarque_pct

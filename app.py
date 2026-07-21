@@ -13,6 +13,7 @@ MOD2_DIR = BASE / "Simulaci\u00f3n Cultivo"
 IV_PATH  = MOD1_DIR / "src" / "initial_values.py"
 PAR_PATH = MOD2_DIR / "parametros.py"
 REG_PATH = MOD2_DIR / "inputs" / "regantes.csv"
+METODO_PATH = MOD2_DIR / "inputs" / "metodo_riego.csv"
 PROD_PATH = MOD2_DIR / "inputs" / "productividad_cultivos.csv"
 CULT_PATH = MOD2_DIR / "inputs" / "data_cultivos.csv"
 CALEND_PATH = MOD2_DIR / "inputs" / "calendario_siembra.csv"
@@ -69,6 +70,10 @@ def _date_to_day(d):
 
 def _load_regantes():
     return pd.read_csv(REG_PATH)
+
+
+def _load_metodo_riego():
+    return pd.read_csv(METODO_PATH)
 
 
 def _load_productividad():
@@ -518,6 +523,18 @@ def _panel_regante():
     _caudal_max = getattr(IV, "CAUDAL_MAXIMO_LS", None) if IV else None
     _efic       = getattr(IV, "EFICIENCIA_POSICION_PCT", None) if IV else None
     _canal_km   = getattr(IV, "CANAL_KM", None) if IV else None
+    # Opciones de método de riego
+    try:
+        df_met = _load_metodo_riego()
+        _opciones_riego = [{"label": row["descripcion"], "value": row["metodo"]} for _, row in df_met.iterrows()]
+        _factor_map     = dict(zip(df_met["metodo"], df_met["factor"]))
+    except Exception:
+        _opciones_riego = [{"label": "Goteo (95%)", "value": "goteo"},
+                           {"label": "Aspersión (80%)", "value": "aspersion"},
+                           {"label": "Tradicional (60%)", "value": "tradicional"}]
+        _factor_map = {"goteo": 0.95, "aspersion": 0.80, "tradicional": 0.60}
+    _metodo_actual  = str(first.get("metodo_riego", "goteo"))
+    _factor_actual  = _factor_map.get(_metodo_actual, 0.95)
 
     if _caudal_max is not None:
         _badge_color = "success" if _caudal_max >= 30 else "warning" if _caudal_max >= 10 else "danger"
@@ -565,6 +582,26 @@ def _panel_regante():
             dbc.Row([
                 _field("Latitud",  _num("reg-latitud",  float(first.get("latitud",  -30.05)), step=0.0001)),
                 _field("Longitud", _num("reg-longitud", float(first.get("longitud", -71.25)), step=0.0001)),
+            ]),
+            html.Hr(className="my-2"),
+            html.P("Tecnificación del riego", className="fw-semibold small mb-2"),
+            dbc.Row([
+                _field("Tipo de riego",
+                    dcc.Dropdown(
+                        id="reg-metodo-riego",
+                        options=_opciones_riego,
+                        value=_metodo_actual,
+                        clearable=False,
+                        style={"fontSize": "13px"},
+                    )
+                ),
+                dbc.Col(html.Div([
+                    dbc.Label("Factor de eficiencia", className="fw-semibold small mb-1"),
+                    dbc.Input(id="reg-factor-tec",
+                              value=f"{int(_factor_actual*100)} %  (x{_factor_actual})",
+                              disabled=True,
+                              className="form-control form-control-sm bg-light text-muted"),
+                ], className="mb-3")),
             ]),
             _caudal_badge,
             html.Iframe(
@@ -829,6 +866,7 @@ app.layout = serve_layout
     Output("reg-tiene-sub",      "value"),
     Output("reg-latitud",        "value"),
     Output("reg-longitud",       "value"),
+    Output("reg-metodo-riego",   "value"),
     Output("store-reg-id",       "data"),
     Input("reg-selector",  "value"),
     prevent_initial_call=True,
@@ -843,6 +881,7 @@ def cargar_regante(reg_id):
             tiene, tiene_sub,
             float(row.get("latitud",  -30.05)),
             float(row.get("longitud", -71.25)),
+            str(row.get("metodo_riego", "goteo")),
             int(reg_id))
 
 
@@ -888,6 +927,25 @@ def actualizar_mini_mapa(lat, lon):
     if _kml and _kml.exists():
         return _mini_mapa(float(lat), float(lon), _kml)
     return "<div style='padding:12px;color:#888'>KML no disponible</div>"
+
+
+@app.callback(
+    Output("reg-factor-tec", "value"),
+    Input("reg-metodo-riego", "value"),
+    prevent_initial_call=True,
+)
+def actualizar_factor_tec(metodo):
+    try:
+        df_met = _load_metodo_riego()
+        fila = df_met[df_met["metodo"] == metodo]
+        if not fila.empty:
+            f = float(fila.iloc[0]["factor"])
+            return f"{int(f*100)} %  (x{f})"
+    except Exception:
+        pass
+    factores = {"goteo": 0.95, "aspersion": 0.80, "tradicional": 0.60}
+    f = factores.get(metodo, 1.0)
+    return f"{int(f*100)} %  (x{f})"
 
 
 @app.callback(
@@ -958,6 +1016,7 @@ def gestionar_paradas(n_add, n_del, fecha_sel, paradas):
     State("reg-tiene-sub",        "value"),
     State("reg-latitud",          "value"),
     State("reg-longitud",         "value"),
+    State("reg-metodo-riego",     "value"),
     State("store-reg-id",         "data"),
     State({"type": "cult",  "col": ALL, "nombre": ALL}, "value"),
     State({"type": "cult",  "col": ALL, "nombre": ALL}, "id"),
@@ -970,9 +1029,15 @@ def gestionar_paradas(n_add, n_del, fecha_sel, paradas):
 def guardar_todo(_, acciones, tasa_accion, horas_turno, fecha_inicio_iv, tiempo_total, desm_ini, desm_fin, salto_desm, frec_turno, dur_mant, paradas,
                  fecha_ini, particiones, presupuesto, cc, pmp, alpha, stock_sub, dias_sub, dias_est,
                  reg_sel, reg_nombre, reg_hectareas, reg_frec, reg_cap_est, reg_nivel_est,
-                 tiene_estanque, tiene_sub, reg_lat, reg_lon, reg_id,
-                 cult_vals, cult_ids, cal_vals, cal_ids, pheno_vals, pheno_ids):
+                 tiene_estanque, tiene_sub, reg_lat, reg_lon, reg_metodo,
+                 reg_id, cult_vals, cult_ids, cal_vals, cal_ids, pheno_vals, pheno_ids):
     errores = []
+    # Cargar mapa de factores de tecnificación
+    try:
+        _df_met = _load_metodo_riego()
+        _factor_map = dict(zip(_df_met["metodo"], _df_met["factor"].astype(float)))
+    except Exception:
+        _factor_map = {"goteo": 0.95, "aspersion": 0.80, "tradicional": 0.60}
     try:
         _tasa = float(tasa_accion) if tasa_accion is not None else 1.0
         _h    = int(horas_turno)   if horas_turno  is not None else 12
@@ -990,6 +1055,8 @@ def guardar_todo(_, acciones, tasa_accion, horas_turno, fecha_inicio_iv, tiempo_
             "CALENDARIO_PARADAS":           repr([p["dia"] for p in paradas]),
             "REGANTE_LATITUD":              float(reg_lat)       if reg_lat     is not None else -30.05,
             "REGANTE_LONGITUD":             float(reg_lon)       if reg_lon     is not None else -71.25,
+            "METODO_RIEGO":                 f'"{reg_metodo}"'    if reg_metodo  else '"goteo"',
+            "FACTOR_TECNIFICACION":         _factor_map.get(reg_metodo, 0.95) if reg_metodo else 0.95,
         })
     except Exception as e:
         errores.append(f"initial_values.py: {e}")
@@ -1020,6 +1087,7 @@ def guardar_todo(_, acciones, tasa_accion, horas_turno, fecha_inicio_iv, tiempo_
         df.loc[idx, "tiene_derechos_subterranea"] = int(bool(tiene_sub))
         df.loc[idx, "latitud"]  = float(reg_lat)  if reg_lat  is not None else -30.05
         df.loc[idx, "longitud"] = float(reg_lon)  if reg_lon  is not None else -71.25
+        df.loc[idx, "metodo_riego"] = str(reg_metodo) if reg_metodo else "goteo"
         df.to_csv(REG_PATH, index=False)
     except Exception as e:
         errores.append(f"regantes.csv: {e}")

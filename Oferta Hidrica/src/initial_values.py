@@ -9,7 +9,7 @@ PARÁMETROS CONFIGURABLES - Edita aquí para cambiar el comportamiento del model
 
 # Número de acciones que tiene el regante
 # Cada acción otorga derecho a usar agua
-NUMERO_ACCIONES = 40
+NUMERO_ACCIONES = 20
 
 # Valor de una acción: 1 L/s durante HORAS_TURNO horas (m³ por turno)
 # 1 L/s × 12 h × 3600 s/h / 1000 = 43.2 m³
@@ -67,6 +67,15 @@ PERDIDA_BIF_PCT_KM = 0.5
 
 # Penalización por cada usuario aguas arriba en la misma bifurcación (L/s)
 PENALIZACION_UPSTREAM_LS = 10.0
+
+# ============================== TECNIFICACIÓN DEL RIEGO ==============================
+
+# Método de riego del regante (goteo / aspersion / tradicional)
+METODO_RIEGO = "goteo"
+
+# Factor de eficiencia por tecnificación del riego
+# goteo=0.95 | aspersion=0.80 | tradicional=0.60
+FACTOR_TECNIFICACION = 0.95
 
 # ============================== MANTENIMIENTO ==============================
 
