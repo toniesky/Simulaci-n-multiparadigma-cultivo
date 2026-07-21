@@ -1,6 +1,5 @@
 """Balance hídrico diario: oferta superficial y subterránea."""
 
-import random
 from datetime import datetime, timedelta
 import pandas as pd
 
@@ -54,59 +53,61 @@ def get_recarga_dia(fecha_str, iv):
     return 0.0
 
 
-def calcular_agua_dia(dia, calendario, iv, desmarque_override=None):
+def calcular_agua_dia(dia, calendario, iv, desmarque_override=None, caudal_maximo_ls=None):
     """
     Oferta hídrica para un día específico.
 
-        - OfertaSuperficial_neta = NumeroAcciones x ValorAccion x Desmarque x (1 - Pérdida)
-          (solo en días con apertura de canal y día de turno)
-        - RecargaSubterranea = cantidad recargada HOY según RECARGAS_AGUA_SUBTERRANEA
-          (0.0 en todos los demás días)
+    El caudal que llega al predio está limitado por la posición geográfica
+    del regante (caudal_maximo_ls). Sin cap, se entrega el bruto completo.
+
+        Oferta bruta (L/s) = NUMERO_ACCIONES × desmarque
+        Caudal efectivo (L/s) = min(bruto_ls, caudal_maximo_ls)
+        Oferta neta (m³)  = caudal_efectivo × HORAS_TURNO × 3600 / 1000
 
     Returns:
-        (oferta_sup_neta, oferta_sup_bruta, perdida_m3, recarga_hoy, desmarque_pct)
+        (oferta_sup_neta, oferta_sup_bruta, perdida_total, recarga_hoy, desmarque_pct)
     """
-    fila = calendario.iloc[dia - 1]
-    apertura = int(fila['AperturaCanal'])
-    fecha_str = str(fila['Fecha'])
+    fila        = calendario.iloc[dia - 1]
+    apertura    = int(fila['AperturaCanal'])
+    fecha_str   = str(fila['Fecha'])
     dia_en_turno = int(fila['DiaEnTurno'])
 
     desmarque_pct = get_porcentaje_desmarque(fecha_str, iv, desmarque_override)
-    recarga_hoy = get_recarga_dia(fecha_str, iv)
+    recarga_hoy   = get_recarga_dia(fecha_str, iv)
 
     oferta_sup_bruta = 0.0
-    oferta_sup_neta = 0.0
-    perdida_conduccion = 0.0
-    perdida_filtracion = 0.0
+    oferta_sup_neta  = 0.0
+
     if apertura == 1 and dia_en_turno in (1, iv.FRECUENCIA_TURNO):
-        agua_maxima = iv.NUMERO_ACCIONES * iv.VALOR_ACCION
-        oferta_sup_bruta = agua_maxima * desmarque_pct
-        # Pérdida por conducción: uniforme aleatoria
-        coef_conduccion = random.uniform(iv.PERDIDA_CONDUCCION[0], iv.PERDIDA_CONDUCCION[1])
-        oferta_tras_conduccion = oferta_sup_bruta * (1 - coef_conduccion)
-        # Pérdida por filtración: uniforme aleatoria
-        coef_filtracion = random.uniform(iv.PERDIDA_FILTRACION[0], iv.PERDIDA_FILTRACION[1])
-        oferta_sup_neta = oferta_tras_conduccion * (1 - coef_filtracion)
-        perdida_conduccion = oferta_sup_bruta - oferta_tras_conduccion
-        perdida_filtracion = oferta_tras_conduccion - oferta_sup_neta
+        # Caudal bruto en L/s → volumen en m³ para el turno de HORAS_TURNO horas
+        horas       = getattr(iv, 'HORAS_TURNO', 12)
+        bruto_ls    = iv.NUMERO_ACCIONES * desmarque_pct          # L/s
+        efectivo_ls = (min(bruto_ls, caudal_maximo_ls)
+                       if caudal_maximo_ls is not None else bruto_ls)
+        oferta_sup_bruta = bruto_ls    * horas * 3600 / 1000      # m³
+        oferta_sup_neta  = efectivo_ls * horas * 3600 / 1000      # m³
 
-    perdida_total = perdida_conduccion + perdida_filtracion
-    return oferta_sup_neta, oferta_sup_bruta, perdida_conduccion, perdida_filtracion, perdida_total, recarga_hoy, desmarque_pct
+    perdida_total = oferta_sup_bruta - oferta_sup_neta
+    return oferta_sup_neta, oferta_sup_bruta, perdida_total, recarga_hoy, desmarque_pct
 
 
-def simular(calendario, iv, desmarque_override=None, numero_escenario=None):
+def simular(calendario, iv, desmarque_override=None, numero_escenario=None,
+            caudal_maximo_ls=None):
     """
     Ejecuta la simulación completa y retorna el DataFrame de resultados.
 
     Args:
-        calendario: DataFrame generado por calendarios.generar_calendario
-        iv: módulo initial_values cargado
-        desmarque_override: porcentaje de desmarque final (None → usa iv.PORCENTAJE_DESMARQUE_FINAL)
-        numero_escenario: identificador añadido como columna 'Escenario' si se indica
+        calendario       : DataFrame generado por calendarios.generar_calendario
+        iv               : módulo initial_values cargado
+        desmarque_override : porcentaje de desmarque final (None → usa iv.PORCENTAJE_DESMARQUE_FINAL)
+        numero_escenario : identificador añadido como columna 'Escenario' si se indica
+        caudal_maximo_ls : caudal máximo disponible en el predio (L/s), calculado
+                           a partir de la posición geográfica del regante.
+                           None → sin restricción geográfica.
 
     Returns:
         DataFrame con columnas adicionales:
-            OfertaSuperficial, PerdidaConduccion, PerdidaFiltracion, PerdidaTotal,
+            OfertaSuperficial, OfertaBruta, PerdidaTotal,
             PorcentajeDesmarque, RecargaSubterranea [, Escenario]
     """
     resultados = calendario.copy()
@@ -129,22 +130,22 @@ def simular(calendario, iv, desmarque_override=None, numero_escenario=None):
             f"máximo de {dias_max} días."
         )
 
-    os_list, pcond_list, pfilt_list, ptot_list, dpc_list, stk_list = [], [], [], [], [], []
+    os_list, bruto_list, ptot_list, dpc_list, stk_list = [], [], [], [], []
     for dia in range(1, iv.TIEMPO_TOTAL + 1):
-        os_, _, pcond, pfilt, ptot, stk, dpc = calcular_agua_dia(dia, calendario, iv, desmarque_override)
+        os_, bruto, ptot, stk, dpc = calcular_agua_dia(
+            dia, calendario, iv, desmarque_override, caudal_maximo_ls
+        )
         os_list.append(os_)
-        pcond_list.append(pcond)
-        pfilt_list.append(pfilt)
+        bruto_list.append(bruto)
         ptot_list.append(ptot)
         dpc_list.append(dpc)
         stk_list.append(stk)
 
     resultados['OfertaSuperficial'] = os_list
-    resultados['PerdidaConduccion'] = pcond_list
-    resultados['PerdidaFiltracion'] = pfilt_list
-    resultados['PerdidaTotal'] = ptot_list
+    resultados['OfertaBruta']       = bruto_list
+    resultados['PerdidaTotal']      = ptot_list
     resultados['PorcentajeDesmarque'] = dpc_list
-    resultados['RecargaSubterranea'] = stk_list
+    resultados['RecargaSubterranea']  = stk_list
     if numero_escenario is not None:
         resultados['Escenario'] = numero_escenario
 

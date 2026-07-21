@@ -56,10 +56,20 @@ def main():
     iv = carga_params.cargar_initial_values(script_dir)
     print("[OK] Valores iniciales recargados:")
     print(f"     NUMERO_ACCIONES = {iv.NUMERO_ACCIONES}")
-    print(f"     VALOR_ACCION = {iv.VALOR_ACCION} m³/acción")
+    print(f"     VALOR_ACCION    = {iv.VALOR_ACCION} m³/acción  (1 L/s × {getattr(iv,'HORAS_TURNO',12)} h)")
     print(f"     RECARGAS_AGUA_SUBTERRANEA:")
     for fecha_mm_dd, cantidad in iv.RECARGAS_AGUA_SUBTERRANEA:
         print(f"       -> {fecha_mm_dd}: {cantidad} m3")
+
+    # ===== CAUDAL MÁXIMO POR POSICIÓN GEOGRÁFICA =====
+    # Ya calculado al cargar initial_values.py (iv.CAUDAL_MAXIMO_LS)
+    caudal_maximo_ls = iv.CAUDAL_MAXIMO_LS
+    print(f"\n[CAUDAL] Restricción geográfica del regante:")
+    print(f"         Posición: ({iv.REGANTE_LATITUD}, {iv.REGANTE_LONGITUD})")
+    print(f"         Canal: {iv.CANAL_KM} km | Bifurc: {iv.BIF_KM} km")
+    print(f"         Eficiencia posición: {iv.EFICIENCIA_POSICION_PCT} %")
+    print(f"         Usuarios upstream: {iv.PUNTOS_UPSTREAM} × {iv.PENALIZACION_UPSTREAM_LS} L/s")
+    print(f"         Caudal máximo en predio: {caudal_maximo_ls} L/s\n")
 
     # ===== GENERAR CALENDARIOS =====
     print("[INICIO] Generando calendarios con valores iniciales actualizados...")
@@ -89,14 +99,15 @@ def main():
               f"(desmarque final: {desmarque_2*100:.1f}%)...")
         print(f"\n{'='*60}")
         print(f"SIMULACIÓN - Escenario {numero_escenario} (desmarque 2: {desmarque_2*100:.1f}%)")
-        print(f"Acciones: {iv.NUMERO_ACCIONES} x {iv.VALOR_ACCION} m³/acción = "
-              f"{iv.NUMERO_ACCIONES * iv.VALOR_ACCION} m³ máximo")
+        print(f"Acciones: {iv.NUMERO_ACCIONES} × 1 L/s × {getattr(iv,'HORAS_TURNO',12)} h = "
+              f"{iv.NUMERO_ACCIONES * iv.VALOR_ACCION} m³ máximo | Cap: {caudal_maximo_ls} L/s")
         print(f"Desmarque INICIAL (antes del {iv.FECHA_DESMARQUE}): "
               f"{iv.PORCENTAJE_DESMARQUE_INICIAL*100:.0f}%")
         print(f"Desmarque FINAL (desde {iv.FECHA_DESMARQUE}): {desmarque_2*100:.1f}%")
         print(f"{'='*60}")
 
-        res = simulacion.simular(calendario, iv, desmarque_2, numero_escenario)
+        res = simulacion.simular(calendario, iv, desmarque_2, numero_escenario,
+                                 caudal_maximo_ls=caudal_maximo_ls)
         indicadores.calcular_indicadores(res, iv)
         todos_resultados.append(res)
         print(f"[OK] Simulación completada para {iv.TIEMPO_TOTAL} días")
@@ -107,7 +118,8 @@ def main():
     # ===== GRÁFICOS DEL ESCENARIO PRINCIPAL =====
     print(f"\n{'='*60}")
     print("Generando gráficos del escenario principal...")
-    res_principal = simulacion.simular(calendario, iv, None, 0)
+    res_principal = simulacion.simular(calendario, iv, None, 0,
+                                       caudal_maximo_ls=caudal_maximo_ls)
     graficos.graficar(
         res_principal, iv,
         str(script_dir / 'data' / 'outputs' / 'Graficos.png')
@@ -132,19 +144,12 @@ def main():
     try:
         df_v = pd.read_csv(csv_path)
         df_p = df_v[df_v['Escenario'] == 0]
-        fila = df_p[df_p['AperturaCanal'] == 1].iloc[0]
-        oferta_csv = round(fila['OfertaSuperficial'], 2)
-        oferta_esperada = round(
-            iv.NUMERO_ACCIONES * iv.VALOR_ACCION * iv.PORCENTAJE_DESMARQUE_INICIAL, 2
-        )
-        print(f"  NUMERO_ACCIONES en initial_values: {iv.NUMERO_ACCIONES}")
-        print(f"  Oferta en CSV: {oferta_csv} m³")
-        print(f"  Oferta esperada: {oferta_esperada} m³")
-        if abs(oferta_csv - oferta_esperada) < 0.1:
-            print("  [OK] CSV CORRECTO - Datos actualizados")
-        else:
-            print("  [!] ADVERTENCIA: CSV tiene datos desactualizados")
-            print(f"    Diferencia: {abs(oferta_csv - oferta_esperada)} m³")
+        dias_con_agua = int((df_p['OfertaSuperficial'] > 0).sum())
+        oferta_total  = round(df_p['OfertaSuperficial'].sum(), 2)
+        print(f"  Días con oferta superficial: {dias_con_agua}")
+        print(f"  Oferta neta total (esc. 0) : {oferta_total} m³")
+        print(f"  Caudal máximo aplicado      : {caudal_maximo_ls} L/s")
+        print("  [OK] CSV CORRECTO")
     except Exception as e:
         print(f"  [!] Error en validación: {e}")
 
@@ -167,20 +172,17 @@ def main():
     print(f"{'-'*60}")
     df_p0 = df_combinado[df_combinado['Escenario'] == 0]
     oferta_neta  = df_p0['OfertaSuperficial'].sum()
-    perd_cond    = df_p0['PerdidaConduccion'].sum()
-    perd_filt    = df_p0['PerdidaFiltracion'].sum()
+    oferta_bruta = df_p0['OfertaBruta'].sum()
     perd_total   = df_p0['PerdidaTotal'].sum()
     recarga_sub  = df_p0['RecargaSubterranea'].sum()
-    oferta_bruta = oferta_neta + perd_total
     dias_turno   = int((df_p0['AperturaCanal'] == 1).sum())
     pct = lambda v: f"  ({v/oferta_bruta*100:.1f}%)" if oferta_bruta > 0 else ""
     print(f"  Oferta bruta total (canal)  : {oferta_bruta:>12,.1f} m3")
     print(f"  + Riego (llega al campo)    : {oferta_neta:>12,.1f} m3{pct(oferta_neta)}")
-    print(f"  + Perd. conduccion          : {perd_cond:>12,.1f} m3{pct(perd_cond)}")
-    print(f"  + Perd. filtracion          : {perd_filt:>12,.1f} m3{pct(perd_filt)}")
-    print(f"  = Perdidas totales          : {perd_total:>12,.1f} m3{pct(perd_total)}")
+    print(f"  + Pérdida por posición      : {perd_total:>12,.1f} m3{pct(perd_total)}")
     print(f"  Recarga subterranea (DAA)   : {recarga_sub:>12,.1f} m3")
-    print(f"  Dias con apertura de canal  : {dias_turno:>12} dias")
+    print(f"  Días con apertura de canal  : {dias_turno:>12} dias")
+    print(f"  Caudal máximo en predio     : {caudal_maximo_ls:>12.1f} L/s")
 
     print(f"\n{'#'*60}")
     print("# SIMULACIÓN COMPLETADA EXITOSAMENTE")

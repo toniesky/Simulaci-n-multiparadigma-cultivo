@@ -11,9 +11,9 @@ let escenarioDisponibles = [];
 const dayNumber = document.getElementById('dayNumber');
 const dayDate = document.getElementById('dayDate');
 const accionesHoy = document.getElementById('accionesHoy');
-const perdidaConduccionPct = document.getElementById('perdidaConduccionPct');
-const perdidaFiltracionM3 = document.getElementById('perdidaFiltracionM3');
+const ofertaBrutaM3 = document.getElementById('ofertaBrutaM3');
 const perdidaTotalM3 = document.getElementById('perdidaTotalM3');
+const caudalEfectivoLS = document.getElementById('caudalEfectivoLS');
 const stockHoy = document.getElementById('stockHoy');
 const desmarqueHoy = document.getElementById('desmarqueHoy');
 const turnoActivo = document.getElementById('turnoActivo');
@@ -130,12 +130,14 @@ async function cargarIndicadores() {
 
 // Cargar parámetros del modelo (se carga una sola vez)
 let parametrosCargados = false;
+let parametrosGlobales = null;
 async function cargarParametros() {
     if (parametrosCargados) return; // Cargar solo una vez
     
     try {
         const response = await fetch('/api/parametros');
         const parametros = await response.json();
+        parametrosGlobales = parametros;  // guardar para uso en actualizarEstadisticas
         
         let html = '';
         
@@ -143,7 +145,10 @@ async function cargarParametros() {
         html += '<div class="param-section">';
         html += '<div class="param-section-title">⚡ Acciones de Agua</div>';
         html += `<div class="param-item"><span class="param-label">Número:</span><span class="param-value">${parametros.ACCIONES.NUMERO_ACCIONES}</span></div>`;
-        html += `<div class="param-item"><span class="param-label">Valor/Acción:</span><span class="param-value">${parametros.ACCIONES.VALOR_ACCION} m³/día</span></div>`;
+        html += `<div class="param-item"><span class="param-label">Valor/Acción:</span><span class="param-value">1 L/s</span></div>`;
+        html += `<div class="param-item"><span class="param-label">Duración turno:</span><span class="param-value">${parametros.ACCIONES.HORAS_TURNO || 12} horas</span></div>`;
+        html += `<div class="param-item"><span class="param-label">Caudal bruto/acción:</span><span class="param-value">${parametros.ACCIONES.NUMERO_ACCIONES} L/s</span></div>`;
+        html += `<div class="param-item" style="border-top:1px solid #ffffff33;padding-top:6px;margin-top:4px"><span class="param-label" style="color:#4fc3f7">Caudal máximo:</span><span class="param-value" style="color:#4fc3f7;font-size:1.1em">${parametros.ACCIONES.CAUDAL_MAXIMO_LS || 0} L/s</span></div>`;
         html += '</div>';
         
         // Sección DESMARQUE
@@ -162,14 +167,6 @@ async function cargarParametros() {
                 html += `<div class="param-item"><span class="param-label">Recarga ${i+1} (${r.fecha}):</span><span class="param-value">${r.cantidad} m³</span></div>`;
             });
         }
-        html += '<div class="param-section">';
-        html += '<div class="param-section-title">💧 Pérdidas</div>';
-        if (parametros.PERDIDAS) {
-            html += `<div class="param-item"><span class="param-label">Filtración:</span><span class="param-value">U[${parametros.PERDIDAS.FILTRACION_MIN}%, ${parametros.PERDIDAS.FILTRACION_MAX}%]</span></div>`;
-            html += `<div class="param-item"><span class="param-label">Conducción:</span><span class="param-value">U[${parametros.PERDIDAS.CONDUCCION_MIN}%, ${parametros.PERDIDAS.CONDUCCION_MAX}%]</span></div>`;
-        }
-        html += '</div>';
-        
         // Sección TURNO
         html += '<div class="param-section">';
         html += '<div class="param-section-title">🔄 Ciclo de Turno</div>';
@@ -277,37 +274,37 @@ function actualizarIndicadoresDinamicos() {
         }
     }
     
-    // 3. Suma acumulada de agua superficial (hasta hoy)
-    const sumaSuperficialAcum = datosAcumulados.reduce((sum, d) => {
-        return sum + parseFloat(d.OfertaSuperficial || 0);
-    }, 0);
+    // 3. Oferta neta acumulada
+    const sumaSuperficialAcum = datosAcumulados.reduce((sum, d) =>
+        sum + parseFloat(d.OfertaSuperficial || 0), 0);
 
-    // 4. Promedio diario de agua superficial (hasta hoy)
+    // 4. Oferta bruta acumulada
+    const sumaBrutaAcum = datosAcumulados.reduce((sum, d) =>
+        sum + parseFloat(d.OfertaBruta || d.OfertaSuperficial || 0), 0);
+
+    // 5. Pérdida acumulada por posición (bruta − neta)
+    const perdidaAcum = sumaBrutaAcum - sumaSuperficialAcum;
+    const pctPerdida  = sumaBrutaAcum > 0
+        ? (perdidaAcum / sumaBrutaAcum * 100) : 0;
+
+    // Turnos con canal abierto (OfertaBruta > 0)
+    const diasTurno = datosAcumulados.filter(d =>
+        parseFloat(d.OfertaBruta || d.OfertaSuperficial || 0) > 0).length;
+    const perdPorTurno = diasTurno > 0 ? perdidaAcum / diasTurno : 0;
+
+    // 6. Promedio neto por día
     const promedioOfertaAcum = datosAcumulados.length > 0
-        ? sumaSuperficialAcum / datosAcumulados.length
-        : 0;
+        ? sumaSuperficialAcum / datosAcumulados.length : 0;
 
-    // 5. Estadísticas de pérdida total (solo días con canal abierto)
-    const diasConPerdida = datosAcumulados.filter(d => parseFloat(d.PerdidaTotal || 0) > 0);
-    const perdMin = diasConPerdida.length > 0
-        ? Math.min(...diasConPerdida.map(d => parseFloat(d.PerdidaTotal)))
-        : 0;
-    const perdMax = diasConPerdida.length > 0
-        ? Math.max(...diasConPerdida.map(d => parseFloat(d.PerdidaTotal)))
-        : 0;
-    const perdProm = diasConPerdida.length > 0
-        ? diasConPerdida.reduce((s, d) => s + parseFloat(d.PerdidaTotal || 0), 0) / diasConPerdida.length
-        : 0;
-
-    // Actualizar elementos en el DOM
+    // Actualizar DOM
     maxSinSuperficial.textContent = maxDiasSinSuperficial;
     diasSinAgua.textContent = maxDiasSinAgua;
     sumaSuperficial.textContent = sumaSuperficialAcum.toFixed(0);
-    ofertaTotalDisp.textContent = sumaSuperficialAcum.toFixed(0);
-    promedioTotal.textContent = promedioOfertaAcum.toFixed(2);
-    if (perdidaMin) perdidaMin.textContent = perdMin.toFixed(2);
-    if (perdidaMax) perdidaMax.textContent = perdMax.toFixed(2);
-    if (perdidaProm) perdidaProm.textContent = perdProm.toFixed(2);
+    ofertaTotalDisp.textContent  = sumaBrutaAcum.toFixed(0);
+    promedioTotal.textContent    = promedioOfertaAcum.toFixed(2);
+    if (perdidaMin)  perdidaMin.textContent  = perdidaAcum.toFixed(1);
+    if (perdidaMax)  perdidaMax.textContent  = pctPerdida.toFixed(1);
+    if (perdidaProm) perdidaProm.textContent = perdPorTurno.toFixed(2);
 }
 
 // Actualizar estadísticas del día actual
@@ -318,13 +315,19 @@ function actualizarEstadisticas() {
     
     dayNumber.textContent = diaActual;
     dayDate.textContent = datoDia.Fecha || '---';
+    // Caudal máximo en parámetros (se actualiza desde parametrosGlobales, no aquí)
+
     accionesHoy.textContent = parseFloat(datoDia.OfertaSuperficial || 0).toFixed(2);
-    const perdHoyFiltracion = parseFloat(datoDia.PerdidaFiltracion || 0);
-    const perdHoyConduccion = parseFloat(datoDia.PerdidaConduccion || 0);
     const perdHoyTotal = parseFloat(datoDia.PerdidaTotal || 0);
-    if (perdidaConduccionPct) perdidaConduccionPct.textContent = perdHoyConduccion.toFixed(2);
-    if (perdidaFiltracionM3) perdidaFiltracionM3.textContent = perdHoyFiltracion.toFixed(2);
-    if (perdidaTotalM3) perdidaTotalM3.textContent = perdHoyTotal.toFixed(2);
+    const ofertaBruta  = parseFloat(datoDia.OfertaBruta  || 0);
+    const ofertaNeta   = parseFloat(datoDia.OfertaSuperficial || 0);
+    // L/s = m³ × 1000 / (12 h × 3600 s/h)
+    const SEG_TURNO = 12 * 3600;
+    const caudalBrutoVal   = ofertaBruta * 1000 / SEG_TURNO;
+    const caudalEfectivoVal = ofertaNeta  * 1000 / SEG_TURNO;
+    if (ofertaBrutaM3)    ofertaBrutaM3.textContent    = ofertaBruta.toFixed(2);
+    if (perdidaTotalM3)   perdidaTotalM3.textContent   = perdHoyTotal.toFixed(2);
+    if (caudalEfectivoLS) caudalEfectivoLS.textContent = caudalEfectivoVal.toFixed(3);
     stockHoy.textContent = parseFloat(datoDia.RecargaSubterranea || 0).toFixed(2);
     stockHoy.textContent = parseFloat(datoDia.RecargaSubterranea || 0).toFixed(2);
     if (desmarqueHoy) desmarqueHoy.textContent = parseFloat(datoDia.PorcentajeDesmarque || 0).toFixed(4) * 100;
@@ -357,16 +360,23 @@ function actualizarGrafico() {
     
     // Datos hasta el día actual
     const datosAhora = datos.slice(0, diaActual);
-    const fechas = datosAhora.map(d => d.Fecha);
+    const fechas      = datosAhora.map(d => d.Fecha);
     const superficial = datosAhora.map(d => parseFloat(d.OfertaSuperficial || 0));
-    
-    // ===== GRÁFICO 1: OFERTA SUPERFICIAL =====
+    // Pérdida por caudal máximo = OfertaBruta - OfertaSuperficial
+    const perdida     = datosAhora.map(d =>
+        Math.max(0, parseFloat(d.OfertaBruta || 0) - parseFloat(d.OfertaSuperficial || 0))
+    );
+
+    // ===== GRÁFICO 1 =====
     const trace1_superficial = {
-        x: fechas,
-        y: superficial,
-        type: 'bar',
-        marker: { color: 'rgba(76, 175, 80, 0.8)' },
-        name: 'Oferta Superficial'
+        x: fechas, y: superficial, type: 'bar',
+        marker: { color: 'rgba(37,99,168,0.8)' },
+        name: 'Recibido (m³)'
+    };
+    const trace1_perdida = {
+        x: fechas, y: perdida, type: 'bar',
+        marker: { color: 'rgba(220,38,38,0.5)' },
+        name: 'No recibido — cap posición (m³)'
     };
     
     // Detectar períodos de mantenimiento (EnParada = 1)
@@ -426,18 +436,24 @@ function actualizarGrafico() {
         .toISOString().split('T')[0];
 
     const layout1 = {
-        title: 'Panel 1: Oferta Superficial Ajustada (m³/día)',
-        xaxis: { title: 'Fecha', type: 'date', range: [xRangeMin, xRangeMax] },
-        yaxis: { title: 'Oferta Superficial (m³/día)' },
-        hovermode: 'x',
-        margin: { l: 50, r: 20, t: 40, b: 40 },
-        height: 280,
-        plot_bgcolor: '#f8f9fa',
-        paper_bgcolor: 'white',
-        shapes: shapes
+        title: { text: 'Oferta Superficial por Turno', font: { family: 'Segoe UI, system-ui', size: 13, color: '#1a3d6e' } },
+        xaxis: { title: '', type: 'date', range: [xRangeMin, xRangeMax],
+                 gridcolor: '#e9eef5', linecolor: '#d1d9e4', tickfont: { family: 'Segoe UI', size: 11, color: '#6b7280' } },
+        yaxis: { title: 'm³/turno', gridcolor: '#e9eef5', linecolor: '#d1d9e4',
+                 tickfont: { family: 'Segoe UI', size: 11, color: '#6b7280' },
+                 titlefont: { family: 'Segoe UI', size: 11, color: '#6b7280' } },
+        barmode: 'stack',
+        hovermode: 'x unified',
+        margin: { l: 50, r: 14, t: 30, b: 34 },
+        height: 230,
+        plot_bgcolor: '#ffffff',
+        paper_bgcolor: '#ffffff',
+        shapes: shapes,
+        legend: { orientation: 'h', y: -0.28, font: { family: 'Segoe UI', size: 11, color: '#374151' } },
+        font: { family: 'Segoe UI, system-ui' }
     };
     
-    Plotly.newPlot(chart1, [trace1_superficial], layout1, { responsive: true, displayModeBar: false });
+    Plotly.newPlot(chart1, [trace1_superficial, trace1_perdida], layout1, { responsive: true, displayModeBar: false });
     
     // ===== GRÁFICO 2: RECARGAS SUBTERRÁNEAS =====
     const recargasHoy = datosAhora.filter(d => parseFloat(d.RecargaSubterranea || 0) > 0);
@@ -448,35 +464,30 @@ function actualizarGrafico() {
     const anchoBarraMs = 14 * 24 * 60 * 60 * 1000;
 
     const trace2_recarga = {
-        x: recargaFechas,
-        y: recargaMontos,
-        type: 'bar',
+        x: recargaFechas, y: recargaMontos, type: 'bar',
         width: recargaFechas.map(() => anchoBarraMs),
-        marker: { color: 'rgba(0, 150, 136, 0.85)', line: { color: 'rgba(0, 100, 100, 1)', width: 1.5 } },
+        marker: { color: 'rgba(22,163,74,0.75)', line: { color: 'rgba(22,163,74,1)', width: 1 } },
         name: 'Recarga Subterránea',
         text: recargaMontos.map(m => `+${m.toFixed(0)} m³`),
         textposition: 'outside'
     };
 
-    // Rango X = año completo siempre (mismo que Panel 1)
     const maxRecarga = recargaMontos.length > 0 ? Math.max(...recargaMontos) : 50;
 
     const layout2 = {
-        title: 'Panel 2: Recargas de Agua Subterránea (m³ recargados por fecha)',
-        xaxis: {
-            title: 'Fecha',
-            type: 'date',
-            range: [xRangeMin, xRangeMax]
-        },
-        yaxis: {
-            title: 'Cantidad Recargada (m³)',
-            range: [0, maxRecarga * 1.45]
-        },
-        hovermode: 'x',
-        margin: { l: 50, r: 20, t: 40, b: 40 },
-        height: 280,
-        plot_bgcolor: '#f8f9fa',
-        paper_bgcolor: 'white'
+        title: { text: 'Recargas de Agua Subterránea', font: { family: 'Segoe UI, system-ui', size: 13, color: '#1a3d6e' } },
+        xaxis: { title: '', type: 'date', range: [xRangeMin, xRangeMax],
+                 gridcolor: '#e9eef5', linecolor: '#d1d9e4', tickfont: { family: 'Segoe UI', size: 11, color: '#6b7280' } },
+        yaxis: { title: 'm³ recargados', range: [0, maxRecarga * 1.45],
+                 gridcolor: '#e9eef5', linecolor: '#d1d9e4',
+                 tickfont: { family: 'Segoe UI', size: 11, color: '#6b7280' },
+                 titlefont: { family: 'Segoe UI', size: 11, color: '#6b7280' } },
+        hovermode: 'x unified',
+        margin: { l: 50, r: 14, t: 30, b: 34 },
+        height: 230,
+        plot_bgcolor: '#ffffff',
+        paper_bgcolor: '#ffffff',
+        font: { family: 'Segoe UI, system-ui' }
     };
 
     Plotly.newPlot(chart2, [trace2_recarga], layout2, { responsive: true, displayModeBar: false });

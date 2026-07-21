@@ -1,7 +1,7 @@
-id,nombre,frecuencia_dias,hectareas,fraccion_cultivada,capacidad_estanque_m3,nivel_estanque_inicial_m3,tiene_derechos_subterranea
-1,Regante_A,9,2.0,0.6,400.0,250.0,0
-2,Regante_B,9,1.0,0.7,120.0,20.0,1
-3,Regante_C,9,0.8,0.65,100.0,15.0,1
-4,Regante_D,9,0.6,0.55,60.0,5.0,1
-5,Regante_E,9,1.5,0.75,200.0,30.0,1
-6,Regante_F,9,2.0,0.85,300.0,50.0,1
+id,nombre,frecuencia_dias,hectareas,fraccion_cultivada,capacidad_estanque_m3,nivel_estanque_inicial_m3,tiene_derechos_subterranea,latitud,longitud
+1,Regante_A,9,1.0,0.6,0.0,0.0,0,-30.0899,-71.2464
+2,Regante_B,9,1.0,0.7,120.0,20.0,1,-30.0453,-71.2368
+3,Regante_C,9,0.8,0.65,100.0,15.0,1,-29.994,-71.2433
+4,Regante_D,9,0.6,0.55,60.0,5.0,1,-30.0403,-71.2285
+5,Regante_E,9,1.5,0.75,200.0,30.0,1,-30.0119,-71.2499
+6,Regante_F,9,2.0,0.85,300.0,50.0,1,-30.0287,-71.2794

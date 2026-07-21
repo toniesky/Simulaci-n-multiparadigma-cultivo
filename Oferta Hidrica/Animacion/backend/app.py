@@ -87,6 +87,13 @@ def get_datos():
     if df.empty:
         return jsonify({'error': f'No hay datos para el escenario {escenario_param}'}), 404
     
+    # Compatibilidad con CSVs antiguos: si no existe OfertaBruta, crearla
+    if 'OfertaBruta' not in df.columns:
+        df['OfertaBruta'] = df['OfertaSuperficial']
+    # PerdidaTotal derivada si falta
+    if 'PerdidaTotal' not in df.columns:
+        df['PerdidaTotal'] = df['OfertaBruta'] - df['OfertaSuperficial']
+    
     datos = df.to_dict('records')
     return jsonify({
         'dias': len(datos),
@@ -167,14 +174,22 @@ def get_parametros():
             PORCENTAJE_DESMARQUE_INICIAL, PORCENTAJE_DESMARQUE_FINAL,
             FECHA_DESMARQUE, SALTO_DESMARQUE,
             RECARGAS_AGUA_SUBTERRANEA,
-            PERDIDA_FILTRACION, PERDIDA_CONDUCCION,
             FRECUENCIA_TURNO, DURACION_MANTENIMIENTO
         )
+        try:
+            from initial_values import HORAS_TURNO, CAUDAL_MAXIMO_LS, EFICIENCIA_POSICION_PCT
+        except ImportError:
+            HORAS_TURNO = 12
+            CAUDAL_MAXIMO_LS = 0.0
+            EFICIENCIA_POSICION_PCT = 0.0
         
         parametros = {
             'ACCIONES': {
                 'NUMERO_ACCIONES': int(NUMERO_ACCIONES),
-                'VALOR_ACCION': float(VALOR_ACCION)
+                'VALOR_ACCION':    float(VALOR_ACCION),
+                'HORAS_TURNO':     int(HORAS_TURNO),
+                'CAUDAL_MAXIMO_LS': float(CAUDAL_MAXIMO_LS),
+                'EFICIENCIA_POSICION_PCT': float(EFICIENCIA_POSICION_PCT)
             },
             'DESMARQUE': {
                 'PORCENTAJE_INICIAL': float(PORCENTAJE_DESMARQUE_INICIAL * 100),
@@ -184,12 +199,6 @@ def get_parametros():
             },
             'AGUA_SUBTERRANEA': {
                 'RECARGAS': [{'fecha': f, 'cantidad': float(c)} for f, c in RECARGAS_AGUA_SUBTERRANEA]
-            },
-            'PERDIDAS': {
-                'FILTRACION_MIN': float(PERDIDA_FILTRACION[0] * 100),
-                'FILTRACION_MAX': float(PERDIDA_FILTRACION[1] * 100),
-                'CONDUCCION_MIN': float(PERDIDA_CONDUCCION[0] * 100),
-                'CONDUCCION_MAX': float(PERDIDA_CONDUCCION[1] * 100)
             },
             'TURNO': {
                 'FRECUENCIA_DIAS': int(FRECUENCIA_TURNO),
@@ -219,11 +228,18 @@ def get_variables():
     
     row = df_filtered.iloc[0]
     
+    SEGUNDOS_TURNO = 12 * 3600  # 43 200 s
+    oferta_bruta_m3 = round(float(row.get('OfertaBruta', 0)), 4)
+    oferta_neta_m3  = round(float(row.get('OfertaSuperficial', 0)), 4)
     variables = {
         'DIA_NUMERO': int(row.get('Dia', 0)),
         'FECHA': str(row.get('Fecha', '')),
-        'OFERTA_SUPERFICIAL': round(float(row.get('OfertaSuperficial', 0)), 2),
-        'PERDIDA_FILTRACION': round(float(row.get('PerdidaFiltracion', 0)), 2),
+        'OFERTA_SUPERFICIAL': round(oferta_neta_m3, 2),
+        'OFERTA_BRUTA':       round(oferta_bruta_m3, 2),
+        'PERDIDA_TOTAL':      round(oferta_bruta_m3 - oferta_neta_m3, 2),
+        # Caudal en L/s: m³ × 1000 / segundos del turno
+        'CAUDAL_BRUTO_LS':    round(oferta_bruta_m3 * 1000 / SEGUNDOS_TURNO, 3),
+        'CAUDAL_EFECTIVO_LS': round(oferta_neta_m3  * 1000 / SEGUNDOS_TURNO, 3),
         'RECARGA_SUBTERRANEA': round(float(row.get('RecargaSubterranea', 0)), 2),
         'PORCENTAJE_DESMARQUE': round(float(row.get('PorcentajeDesmarque', 0)) * 100, 2),
         'NUMERO_TURNO': int(row.get('NumeroTurno', 0)),

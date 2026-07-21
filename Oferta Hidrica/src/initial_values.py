@@ -9,11 +9,11 @@ PARÁMETROS CONFIGURABLES - Edita aquí para cambiar el comportamiento del model
 
 # Número de acciones que tiene el regante
 # Cada acción otorga derecho a usar agua
-NUMERO_ACCIONES = 20
+NUMERO_ACCIONES = 40
 
-# Volumen de agua por acción (m³/día)
-# Cantidad máxima que se puede usar por cada acción
-# 1 acción = 1 L/s × 12 horas (turno) × 3600 seg/hora = 43,200 L = 43.2 m³
+# Valor de una acción: 1 L/s durante HORAS_TURNO horas (m³ por turno)
+# 1 L/s × 12 h × 3600 s/h / 1000 = 43.2 m³
+HORAS_TURNO = 12
 VALOR_ACCION = 43.2
 
 # Agua máxima disponible sin desmarque
@@ -34,7 +34,7 @@ FECHA_DESMARQUE = "09-01"  # 1 de septiembre
 # Salto entre escenarios de desmarque final
 # Cada escenario suma/resta este valor al desmarque base
 
-SALTO_DESMARQUE = 0.025  
+SALTO_DESMARQUE = 0.012
 
 # ============================== AGUA SUBTERRÁNEA (RECARGAS) ==============================
 
@@ -48,16 +48,25 @@ RECARGAS_AGUA_SUBTERRANEA = [
    
 ]
 
-# ============================== PÉRDIDAS ==============================
+# ============================== POSICIÓN GEOGRÁFICA DEL REGANTE ==============================
 
-# Pérdidas como variables aleatorias UNIFORMES: (mínimo, máximo)
-# Cada día con flujo muestrea un valor distinto dentro del rango
+# Coordenadas WGS-84 del predio del regante (actualizadas desde app.py al seleccionar regante)
+REGANTE_LATITUD = -30.0899
+REGANTE_LONGITUD = -71.2464
 
-# Pérdida por filtración (seepage en el suelo)
-PERDIDA_FILTRACION = (0.03, 0.06)   # (3%, 6%)
+# ============================== PARÁMETROS DEL CANAL (KML) ==============================
 
-# Pérdida por conducción (fricción / evaporación en el canal)
-PERDIDA_CONDUCCION = (0.01, 0.04)   # (1%, 4%)
+# Ruta al KML del sistema de canales (relativa a este archivo / src/)
+KML_CANAL_PATH = "calculo_perdida/ejemplo/mapa valle pan de azúcar.kml"
+
+# Caudal medido en la cabecera del canal (L/s) — Tabla 3-5, km 0.1
+Q_INICIAL_LS = 1145.0
+
+# Tasa de pérdida en bifurcaciones secundarias (%/km)
+PERDIDA_BIF_PCT_KM = 0.5
+
+# Penalización por cada usuario aguas arriba en la misma bifurcación (L/s)
+PENALIZACION_UPSTREAM_LS = 10.0
 
 # ============================== MANTENIMIENTO ==============================
 
@@ -68,7 +77,7 @@ DURACION_MANTENIMIENTO = 7
 # Especifica en qué días del año comienzan los períodos de mantenimiento
 # Cada parada dura DURACION_MANTENIMIENTO días consecutivos
 # Fuente: Aviso Asociación de Regantes Marcos — Calendario de cortas invierno 2026
-CALENDARIO_PARADAS = [152, 174, 196, 218, 240]
+CALENDARIO_PARADAS = [152, 174, 195, 218, 240]
 
 # ============================== S,OCKS INICIALES ==============================
 
@@ -91,18 +100,44 @@ DURACION_TURNO = 1  # días (el turno dura 1 día)
 # ============================== TIEMPO DE SIMULACIÓN ==============================
 
 # Período total de simulación (días)
-TIEMPO_TOTAL = 400  # días (1 año)
+TIEMPO_TOTAL = 400
 
 # Paso de integración numérica (días)
 PASO_SIMULACION = 1  # día
 
 # Fecha de inicio de la simulación
-FECHA_INICIO = "2026-01-01"  # Formato YYYY-MM-DD (configurable)
+FECHA_INICIO = "2026-01-01"
 
 # NOTA: FECHA_DESMARQUE define cuándo cambia de desmarque inicial a desmarque final
 # Formato: MM-DD (mes-día), se aplica cada año
 #
 # LÓGICA DE AGUA SUBTERRÁNEA:
 # - Lista de recargas: RECARGAS_AGUA_SUBTERRANEA [("MM-DD", m³_recargados), ...]
+
+# ============================== CAUDAL MÁXIMO (calculado desde posición) ==============================
+# Se recalcula automáticamente cada vez que se carga este archivo.
+# Usa REGANTE_LATITUD, REGANTE_LONGITUD y los parámetros del canal KML.
+try:
+    from pathlib import Path as _Path
+    import sys as _sys
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
+    from calculo_perdida.caudal_maximo import calcular_caudal_maximo as _calc_qmax
+    _kml_abs = (_Path(__file__).resolve().parent.parent / KML_CANAL_PATH).resolve()
+    _qinfo = _calc_qmax(
+        REGANTE_LATITUD, REGANTE_LONGITUD, str(_kml_abs),
+        Q_INICIAL_LS, PERDIDA_BIF_PCT_KM, PENALIZACION_UPSTREAM_LS,
+    )
+    CAUDAL_MAXIMO_LS        = _qinfo["caudal_max_ls"]    # L/s disponibles en el predio
+    EFICIENCIA_POSICION_PCT = _qinfo["eficiencia_pct"]   # % de eficiencia total
+    CANAL_KM                = _qinfo["canal_km"]         # km hasta el predio en el canal
+    BIF_KM                  = _qinfo["bif_km"]           # km en la bifurcación
+    PUNTOS_UPSTREAM         = _qinfo["puntos_upstream"]  # usuarios aguas arriba
+except Exception:
+    # Fallback si el KML no está disponible
+    CAUDAL_MAXIMO_LS        = round(Q_INICIAL_LS * 0.26, 2)
+    EFICIENCIA_POSICION_PCT = 26.0
+    CANAL_KM                = 0.0
+    BIF_KM                  = 0.0
+    PUNTOS_UPSTREAM         = 0
 # - Cada recarga se agrega a la oferta total SOLO el día de la recarga
 # - No hay consumo diario ni stock continuo

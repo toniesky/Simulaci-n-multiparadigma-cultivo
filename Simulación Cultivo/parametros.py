@@ -32,7 +32,7 @@ DIR_SALIDA            = 'outputs'
 #   1   -> arranca el 01 de enero del CSV de clima
 #   91  -> arranca aprox. 1 de abril, etc.
 #   213 -> arranca el 01 de agosto
-DIA_INICIO_SIMULACION = 32
+DIA_INICIO_SIMULACION = 193
 
 # ---------- Propiedades de suelo (FAO-56) ----------
 # Contenido de humedad volumétrico
@@ -166,7 +166,7 @@ RIEGO_HASTA_CC = True
 #      de evaluar la siguiente partición.
 # PARTICIONES = 1 mantiene el comportamiento original (todos los cultivos
 # se simulan de forma independiente sobre la superficie total).
-PARTICIONES = 6
+PARTICIONES = 1
 
 # Presupuesto total disponible para costear los cultivos de todas las
 # particiones (pesos CLP). Se distribuye en orden: si la partición 1 cuesta
@@ -174,4 +174,4 @@ PARTICIONES = 6
 # Los cultivos cuyo costo supere el presupuesto restante quedan excluidos de
 # la selección para esa partición.
 # None o 0 → sin restricción de presupuesto.
-PRESUPUESTO = 4000000
+PRESUPUESTO = 4500000

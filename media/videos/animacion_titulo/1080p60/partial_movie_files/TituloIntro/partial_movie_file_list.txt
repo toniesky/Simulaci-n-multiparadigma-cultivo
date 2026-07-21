@@ -1,0 +1,8 @@
+# This file is used internally by FFMPEG.
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_titulo/1080p60/partial_movie_files/TituloIntro/2257293077_2999512181_223132457.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_titulo/1080p60/partial_movie_files/TituloIntro/2135761390_678776833_1020357520.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_titulo/1080p60/partial_movie_files/TituloIntro/2135761390_2731041608_2499961839.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_titulo/1080p60/partial_movie_files/TituloIntro/2135761390_4028454004_1679163812.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_titulo/1080p60/partial_movie_files/TituloIntro/2135761390_696911759_3356720398.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_titulo/1080p60/partial_movie_files/TituloIntro/2135761390_3725668193_1615792615.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_titulo/1080p60/partial_movie_files/TituloIntro/2135761390_4188378674_1101682277.mp4'

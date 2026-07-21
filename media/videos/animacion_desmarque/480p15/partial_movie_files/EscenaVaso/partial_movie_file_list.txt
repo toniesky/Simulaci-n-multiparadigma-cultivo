@@ -1,0 +1,12 @@
+# This file is used internally by FFMPEG.
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_desmarque/480p15/partial_movie_files/EscenaVaso/1584795214_3699703732_223132457.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_desmarque/480p15/partial_movie_files/EscenaVaso/4072820271_4133259020_4241564666.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_desmarque/480p15/partial_movie_files/EscenaVaso/4072820271_630017663_2383163511.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_desmarque/480p15/partial_movie_files/EscenaVaso/4072820271_2020122682_637832552.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_desmarque/480p15/partial_movie_files/EscenaVaso/4072820271_4079250704_378081617.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_desmarque/480p15/partial_movie_files/EscenaVaso/4072820271_2402128507_2427123584.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_desmarque/480p15/partial_movie_files/EscenaVaso/4072820271_3946697300_1380059143.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_desmarque/480p15/partial_movie_files/EscenaVaso/4072820271_2119439598_755004441.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_desmarque/480p15/partial_movie_files/EscenaVaso/4072820271_3506589752_2764106580.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_desmarque/480p15/partial_movie_files/EscenaVaso/4072820271_1941944408_883266016.mp4'
+file 'file:C:/Users/anton/Desktop/Capstone/Modelo/media/videos/animacion_desmarque/480p15/partial_movie_files/EscenaVaso/4072820271_1440743432_2204986362.mp4'

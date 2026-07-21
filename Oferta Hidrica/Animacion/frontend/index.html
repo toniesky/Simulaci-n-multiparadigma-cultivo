@@ -1,175 +1,233 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Animación - Simulación Oferta Hídrica</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulacion Oferta Hidrica</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <div class="container">
-        <!-- Panel Izquierdo -->
-        <div class="left-panel">
-            <div class="info-box">
-                <h2>Simulación Oferta Hídrica</h2>
-                
-                <div class="scenario-selector">
-                    <label for="scenarioSelect">Escenario:</label>
-                    <select id="scenarioSelect">
-                        <option value="0">Principal</option>
-                    </select>
-                </div>
-                
-                <div class="day-display">
-                    <div class="day-label">Día</div>
-                    <div class="day-number" id="dayNumber">1</div>
-                    <div class="day-date" id="dayDate">2024-01-01</div>
-                </div>
+<div class="app-shell">
 
-                <!-- CONTROLES DE REPRODUCCIÓN -->
-                <div class="controls">
-                    <div class="button-group">
-                        <button id="playBtn" class="btn btn-play" title="Reproducir">▶</button>
-                        <button id="pauseBtn" class="btn btn-pause" title="Pausar">⏸</button>
-                        <button id="resetBtn" class="btn btn-reset" title="Reiniciar">⟲</button>
-                        <button id="endBtn" class="btn btn-end" title="Ir al final">⏭</button>
-                    </div>
-
-                    <div class="slider-group">
-                        <label for="speedSlider">Velocidad:</label>
-                        <input type="range" id="speedSlider" min="0.1" max="5" step="0.1" value="1" class="slider">
-                        <span id="speedValue">1.0x</span>
-                    </div>
-
-                    <div class="slider-group">
-                        <label for="daySlider">Día:</label>
-                        <input type="range" id="daySlider" min="1" max="365" step="1" value="1" class="slider">
-                        <span id="dayValue">1 / 365</span>
-                    </div>
-
-                    <div class="progress-bar">
-                        <div class="progress" id="progressBar"></div>
-                    </div>
-                </div>
-
-                <!-- PARÁMETROS DEL MODELO -->
-                <div class="section section-parametros">
-                    <h3>📋 PARÁMETROS DEL MODELO</h3>
-                    <div class="params-grid" id="parametrosBox">
-                        <!-- Cargado dinámicamente desde API -->
-                    </div>
-                </div>
-
-            </div>
+  <!-- ═══ SIDEBAR ═══ -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="logo-icon"><i data-lucide="droplets"></i></div>
+        <div>
+          <div class="logo-title">Oferta Hidrica</div>
+          <div class="logo-sub">Dinamica de Sistemas</div>
         </div>
-
-        <!-- Panel Derecho - Variables + Gráficos -->
-        <div class="right-panel">
-
-            <!-- FILA 1: Variables Dinámicas -->
-            <div class="info-row">
-                <div class="section section-variables">
-                    <h3>⚡ VARIABLES DINÁMICAS</h3>
-                    <div class="stats-box">
-                        <div class="stat">
-                            <span class="stat-label">Oferta Superficial:</span>
-                            <span class="stat-value" id="accionesHoy">0.00</span> m³/día
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">% Desmarque:</span>
-                            <span class="stat-value" id="desmarqueHoy">0.00</span> %
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">Pérdida por Conducción:</span>
-                            <span class="stat-value" id="perdidaConduccionPct">0.00</span> m³
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">Pérdida por Filtración:</span>
-                            <span class="stat-value" id="perdidaFiltracionM3">0.00</span> m³
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">Pérdida Total:</span>
-                            <span class="stat-value" id="perdidaTotalM3">0.00</span> m³
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">Recarga Subterránea:</span>
-                            <span class="stat-value" id="stockHoy">0.00</span> m³
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- FILA 2: Lógica de Apertura del Canal -->
-            <div class="info-row">
-                <div class="section section-logica">
-                    <h3>🔀 LÓGICA DE APERTURA DEL CANAL</h3>
-                    <div class="logic-flow">
-                        <div class="logic-block">
-                            <span class="logic-label">Turno Activo</span>
-                            <span class="logic-chip" id="chipTurnoActivo">-</span>
-                        </div>
-                        <span class="logic-op">AND NOT</span>
-                        <div class="logic-block">
-                            <span class="logic-label">En Parada</span>
-                            <span class="logic-chip" id="chipEnParada">-</span>
-                        </div>
-                        <span class="logic-op">→</span>
-                        <div class="logic-block">
-                            <span class="logic-label">Apertura Canal</span>
-                            <span class="logic-chip logic-result" id="chipAperturaCanal">-</span>
-                        </div>
-                    </div>
-                    <div class="logic-desc" id="logicDesc">—</div>
-                </div>
-            </div>
-
-            <!-- FILA 3: Indicadores de Disponibilidad -->
-            <div class="info-row info-row-indicadores">
-                <div class="section section-indicadores">
-                    <h3>📊 INDICADORES DE DISPONIBILIDAD</h3>
-                    <div class="indicators-box">
-                        <div class="indicator">
-                            <span class="indicator-label">Días sin sup. (máx):</span>
-                            <span class="indicator-value" id="maxSinSuperficial">-</span> días
-                        </div>
-                        <div class="indicator">
-                            <span class="indicator-label">Días sin ninguna:</span>
-                            <span class="indicator-value" id="diasSinAgua">-</span> días
-                        </div>
-                        <div class="indicator">
-                            <span class="indicator-label">Suma superficial:</span>
-                            <span class="indicator-value" id="sumaSuperficial">-</span> m³
-                        </div>
-                        <div class="indicator">
-                            <span class="indicator-label">Oferta total acum.:</span>
-                            <span class="indicator-value" id="ofertaTotalDisp">-</span> m³
-                        </div>
-                        <div class="indicator">
-                            <span class="indicator-label">Promedio diario:</span>
-                            <span class="indicator-value" id="promedioTotal">-</span> m³/día
-                        </div>
-                        <div class="indicator">
-                            <span class="indicator-label">Pérdida total mín.:</span>
-                            <span class="indicator-value" id="perdidaMin">-</span> m³
-                        </div>
-                        <div class="indicator">
-                            <span class="indicator-label">Pérdida total máx.:</span>
-                            <span class="indicator-value" id="perdidaMax">-</span> m³
-                        </div>
-                        <div class="indicator">
-                            <span class="indicator-label">Pérdida total prom.:</span>
-                            <span class="indicator-value" id="perdidaProm">-</span> m³/día
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="chart1" class="chart"></div>
-            <div id="chart2" class="chart"></div>
-        </div>
+      </div>
     </div>
 
-    <script src="script.js"></script>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Escenario activo</div>
+      <div class="scenario-wrap">
+        <i data-lucide="layers" class="scenario-icon"></i>
+        <select id="scenarioSelect" class="scenario-select">
+          <option value="0">Principal</option>
+        </select>
+        <i data-lucide="chevron-down" class="scenario-chevron"></i>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="day-card">
+        <div class="day-card-top">
+          <i data-lucide="calendar-days" class="day-icon"></i>
+          <span class="day-label-txt">Dia de simulacion</span>
+        </div>
+        <div class="day-number" id="dayNumber">1</div>
+        <div class="day-date" id="dayDate">2026-01-01</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Reproduccion</div>
+      <div class="ctrl-buttons">
+        <button id="resetBtn" class="ctrl-btn" title="Reiniciar"><i data-lucide="skip-back"></i></button>
+        <button id="playBtn"  class="ctrl-btn ctrl-btn-primary" title="Reproducir"><i data-lucide="play"></i></button>
+        <button id="pauseBtn" class="ctrl-btn" title="Pausar"><i data-lucide="pause"></i></button>
+        <button id="endBtn"   class="ctrl-btn" title="Ir al final"><i data-lucide="skip-forward"></i></button>
+      </div>
+      <div class="slider-row">
+        <span class="slider-lbl">Velocidad</span>
+        <input type="range" id="speedSlider" min="0.1" max="5" step="0.1" value="1" class="range-input" />
+        <span class="slider-val" id="speedValue">1.0x</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-lbl">Dia</span>
+        <input type="range" id="daySlider" min="1" max="365" step="1" value="1" class="range-input" />
+        <span class="slider-val" id="dayValue">1/365</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressBar"></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section sidebar-section-params">
+      <div class="sidebar-label">Parametros del modelo</div>
+      <div id="parametrosBox" class="params-box"></div>
+    </div>
+  </aside>
+
+  <!-- ═══ MAIN ═══ -->
+  <main class="main">
+
+    <!-- Fila 1: Logica del canal — ancho completo -->
+    <div class="card logic-card-full">
+      <div class="card-header">
+        <i data-lucide="git-branch"></i>
+        <span>Logica de apertura del canal</span>
+      </div>
+      <div class="logic-inner">
+        <div class="logic-flow">
+          <div class="logic-block">
+            <span class="logic-label">Turno activo</span>
+            <span class="logic-chip" id="chipTurnoActivo">---</span>
+          </div>
+          <span class="logic-op">AND NOT</span>
+          <div class="logic-block">
+            <span class="logic-label">En parada</span>
+            <span class="logic-chip" id="chipEnParada">---</span>
+          </div>
+          <span class="logic-op">-></span>
+          <div class="logic-block">
+            <span class="logic-label">Apertura canal</span>
+            <span class="logic-chip logic-result" id="chipAperturaCanal">---</span>
+          </div>
+        </div>
+        <div class="logic-desc" id="logicDesc">---</div>
+      </div>
+      <span id="turnoActivo" style="display:none"></span>
+    </div>
+
+    <!-- Fila 2: Variables Dinamicas — ancho completo -->
+    <div class="card dyn-vars-card">
+      <div class="card-header card-header-full">
+        <i data-lucide="activity"></i>
+        <span>Variables Dinamicas</span>
+        <span class="header-sub">Estado del modelo en el dia actual</span>
+      </div>
+      <div class="dyn-vars-grid">
+
+        <div class="dyn-item dyn-blue">
+          <div class="dyn-icon"><i data-lucide="waves"></i></div>
+          <div class="dyn-body">
+            <div class="dyn-val" id="accionesHoy">0.00</div>
+            <div class="dyn-lbl">Oferta neta</div>
+            <div class="dyn-unit">m3/turno</div>
+          </div>
+        </div>
+
+        <div class="dyn-item dyn-teal">
+          <div class="dyn-icon"><i data-lucide="percent"></i></div>
+          <div class="dyn-body">
+            <div class="dyn-val" id="desmarqueHoy">0.00</div>
+            <div class="dyn-lbl">Desmarque</div>
+            <div class="dyn-unit">%</div>
+          </div>
+        </div>
+
+        <div class="dyn-item dyn-violet">
+          <div class="dyn-icon"><i data-lucide="gauge"></i></div>
+          <div class="dyn-body">
+            <div class="dyn-val" id="caudalEfectivoLS">0.000</div>
+            <div class="dyn-lbl">Caudal efectivo</div>
+            <div class="dyn-unit">L/s</div>
+          </div>
+        </div>
+
+        <div class="dyn-item dyn-red">
+          <div class="dyn-icon"><i data-lucide="triangle-alert"></i></div>
+          <div class="dyn-body">
+            <div class="dyn-val" id="perdidaTotalM3">0.00</div>
+            <div class="dyn-lbl">Perdida posicion</div>
+            <div class="dyn-unit">m3</div>
+          </div>
+        </div>
+
+        <div class="dyn-item dyn-navy">
+          <div class="dyn-icon"><i data-lucide="droplet"></i></div>
+          <div class="dyn-body">
+            <div class="dyn-val" id="ofertaBrutaM3">0.00</div>
+            <div class="dyn-lbl">Oferta bruta</div>
+            <div class="dyn-unit">m3</div>
+          </div>
+        </div>
+
+        <div class="dyn-item dyn-green">
+          <div class="dyn-icon"><i data-lucide="arrow-down-to-line"></i></div>
+          <div class="dyn-body">
+            <div class="dyn-val" id="stockHoy">0.00</div>
+            <div class="dyn-lbl">Recarga subterranea</div>
+            <div class="dyn-unit">m3</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Fila 3: Indicadores -->
+    <div class="card indicators-card">
+      <div class="card-header card-header-full">
+        <i data-lucide="bar-chart-2"></i>
+        <span>Indicadores de disponibilidad</span>
+        <span class="header-sub">Acumulado hasta el dia actual</span>
+      </div>
+      <div class="ind-grid">
+        <div class="ind-item">
+          <div class="ind-lbl">Dias sin sup. (max)</div>
+          <div class="ind-val"><span id="maxSinSuperficial">-</span> <small>dias</small></div>
+        </div>
+        <div class="ind-item">
+          <div class="ind-lbl">Dias sin ninguna</div>
+          <div class="ind-val"><span id="diasSinAgua">-</span> <small>dias</small></div>
+        </div>
+        <div class="ind-item ind-highlight">
+          <div class="ind-lbl">Oferta neta acum.</div>
+          <div class="ind-val"><span id="sumaSuperficial">-</span> <small>m3</small></div>
+        </div>
+        <div class="ind-item ind-highlight">
+          <div class="ind-lbl">Oferta bruta acum.</div>
+          <div class="ind-val"><span id="ofertaTotalDisp">-</span> <small>m3</small></div>
+        </div>
+        <div class="ind-item">
+          <div class="ind-lbl">Promedio neto/dia</div>
+          <div class="ind-val"><span id="promedioTotal">-</span> <small>m3/dia</small></div>
+        </div>
+        <div class="ind-item ind-warn">
+          <div class="ind-lbl">Perdida acum. posicion</div>
+          <div class="ind-val"><span id="perdidaMin">-</span> <small>m3</small></div>
+        </div>
+        <div class="ind-item ind-warn">
+          <div class="ind-lbl">% perdida posicion</div>
+          <div class="ind-val"><span id="perdidaMax">-</span> <small>%</small></div>
+        </div>
+        <div class="ind-item">
+          <div class="ind-lbl">Perdida prom./turno</div>
+          <div class="ind-val"><span id="perdidaProm">-</span> <small>m3/turno</small></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Graficos -->
+    <div class="card chart-card">
+      <div id="chart1" class="chart-container"></div>
+    </div>
+    <div class="card chart-card">
+      <div id="chart2" class="chart-container"></div>
+    </div>
+
+  </main>
+</div>
+
+<script src="script.js"></script>
+<script>if(window.lucide) lucide.createIcons();</script>
 </body>
 </html>

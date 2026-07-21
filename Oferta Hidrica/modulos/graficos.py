@@ -57,9 +57,7 @@ def graficar(resultados, iv, output_path):
 
     axes[0].set_ylabel('Agua Disponible (m³)', fontsize=12, fontweight='bold')
     axes[0].set_title(
-        f'Panel 1: Oferta Superficial Ajustada '
-        f'(filtr. U[{iv.PERDIDA_FILTRACION[0]*100:.0f}%–{iv.PERDIDA_FILTRACION[1]*100:.0f}%], '
-        f'cond. U[{iv.PERDIDA_CONDUCCION[0]*100:.0f}%–{iv.PERDIDA_CONDUCCION[1]*100:.0f}%])\n'
+        f'Panel 1: Oferta Superficial Ajustada por Posición Geográfica\n'
         f'({iv.PORCENTAJE_DESMARQUE_INICIAL*100:.0f}% hasta {iv.FECHA_DESMARQUE} → '
         f'{iv.PORCENTAJE_DESMARQUE_FINAL*100:.0f}% desde {iv.FECHA_DESMARQUE})',
         fontsize=13, fontweight='bold',
